@@ -79,17 +79,18 @@ export interface UserRoleData {
 export async function setUserRole(userId: string, role: UserRole, updatedBy?: string) {
   try {
     console.log(`Setting role ${role} for user ${userId}`);
-    const roleData: UserRoleData = {
-      role,
+    // Create a plain object with only the necessary fields
+    const roleData = {
+      role: role,
       updatedAt: new Date().toISOString(),
-      updatedBy
+      updatedBy: updatedBy || null // Ensure updatedBy is never undefined
     };
 
     await setDoc(doc(db, 'userRoles', userId), roleData);
     console.log(`Successfully set role for user ${userId}`);
   } catch (error: any) {
     console.error('Error setting user role:', error);
-    throw new Error(`Failed to set user role: ${error.message}`);
+    throw new Error(error.message || 'Failed to set user role');
   }
 }
 
@@ -110,7 +111,8 @@ export async function listUsersWithRoles(): Promise<{ userId: string; role: User
 
     return rolesSnapshot.docs.map(doc => ({
       userId: doc.id,
-      ...(doc.data() as UserRoleData)
+      role: doc.data().role as UserRole,
+      updatedAt: doc.data().updatedAt
     }));
   } catch (error: any) {
     console.error('Error listing users with roles:', error);
