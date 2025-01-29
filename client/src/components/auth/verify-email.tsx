@@ -9,6 +9,12 @@ export function VerifyEmail() {
   const { toast } = useToast();
   const [checking, setChecking] = useState(false);
 
+  // Skip verification for Facebook users
+  if (auth.currentUser?.providerData.some(provider => provider.providerId === 'facebook.com')) {
+    window.location.reload();
+    return null;
+  }
+
   const handleResend = async () => {
     try {
       await sendVerificationEmail();
