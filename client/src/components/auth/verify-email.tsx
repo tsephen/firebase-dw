@@ -30,16 +30,19 @@ export function VerifyEmail() {
     try {
       // Reload the user to get the latest email verification status
       await auth.currentUser?.reload();
+
+      // If already verified, just refresh the page
       if (auth.currentUser?.emailVerified) {
-        // Force a page reload to update the app state
         window.location.reload();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Not verified",
-          description: "Please check your email and verify your address before continuing",
-        });
+        return;
       }
+
+      // If not verified, show error message
+      toast({
+        variant: "destructive",
+        title: "Not verified",
+        description: "Please check your email and verify your address before continuing",
+      });
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -66,7 +69,7 @@ export function VerifyEmail() {
             className="w-full"
             disabled={checking}
           >
-            {checking ? "Checking..." : "Verify and Continue"}
+            {checking ? "Checking..." : "Verified and Continue"}
           </Button>
           <Button 
             onClick={handleResend} 

@@ -78,10 +78,13 @@ export function LoginForm() {
                     <Input type="password" {...field} />
                   </FormControl>
                   <FormMessage />
-                  <ResetPasswordDialog />
                 </FormItem>
               )}
             />
+            {/* Move ResetPasswordDialog outside of form fields */}
+            <div className="text-sm">
+              <ResetPasswordDialog />
+            </div>
             <Button type="submit" className="w-full">
               Sign in
             </Button>
