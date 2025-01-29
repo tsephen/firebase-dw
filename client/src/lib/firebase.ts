@@ -86,9 +86,11 @@ export async function signUpWithGoogle() {
     const user = result.user;
     const name = user.displayName || user.email?.split('@')[0] || 'User';
 
+    // Store role information in displayName with a special prefix
+    const displayNameWithRole = `${name}|role:user`;
+
     await updateProfile(user, {
-      displayName: name,
-      photoURL: JSON.stringify({ role: 'user' })
+      displayName: displayNameWithRole
     });
 
     return user;
@@ -105,9 +107,12 @@ export async function signUpWithGoogle() {
 export async function signUp({ email, password, name, age }: SignUpData) {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+    // Store role and age information in displayName with special prefix
+    const displayNameWithRole = `${name}|role:user|age:${age}`;
+
     await updateProfile(userCredential.user, {
-      displayName: name,
-      photoURL: JSON.stringify({ age, role: 'user' })
+      displayName: displayNameWithRole
     });
     await sendEmailVerification(userCredential.user);
     return userCredential.user;
@@ -146,6 +151,13 @@ export async function resetPassword(email: string) {
   } catch (error: any) {
     throw new Error(getErrorMessage(error));
   }
+}
+
+// Helper function to get user role from displayName
+export function getUserRole(displayName: string | null): string {
+  if (!displayName) return 'user';
+  const roleMatch = displayName.match(/\|role:(\w+)/);
+  return roleMatch ? roleMatch[1] : 'user';
 }
 
 export { auth };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { auth } from "./firebase";
+import { auth, getUserRole } from "./firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 
 export function useAuth() {
@@ -40,15 +40,11 @@ export function useRequireAdmin(redirectTo: string = "/") {
 
   useEffect(() => {
     if (user) {
-      try {
-        const profileData = JSON.parse(user.photoURL || '{}');
-        if (profileData.role !== 'admin') {
-          window.location.href = redirectTo;
-        } else {
-          setIsAdmin(true);
-        }
-      } catch (e) {
+      const role = getUserRole(user.displayName);
+      if (role !== 'admin') {
         window.location.href = redirectTo;
+      } else {
+        setIsAdmin(true);
       }
     }
   }, [user, redirectTo]);

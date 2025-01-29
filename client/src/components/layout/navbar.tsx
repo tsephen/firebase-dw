@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { signOut } from "@/lib/firebase";
+import { signOut, getUserRole } from "@/lib/firebase";
 import { Link } from "wouter";
 
 export function Navbar() {
@@ -19,7 +19,7 @@ export function Navbar() {
             {user && user.emailVerified && (
               <>
                 <Link href="/welcome">Welcome</Link>
-                {user.photoURL && JSON.parse(user.photoURL).role === 'admin' && (
+                {user.displayName && getUserRole(user.displayName) === 'admin' && (
                   <Link href="/admin">Admin</Link>
                 )}
               </>
@@ -30,7 +30,7 @@ export function Navbar() {
           {user ? (
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">
-                {user.displayName}
+                {user.displayName?.split('|')[0]}
               </span>
               <Button
                 variant="ghost"
