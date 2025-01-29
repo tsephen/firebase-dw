@@ -65,9 +65,9 @@ npm install
 
          // User roles collection
          match /userRoles/{userId} {
-           allow read: if true;
-           allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-           allow delete: if isAdmin();
+           allow read: if isSignedIn();
+           allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+           allow delete: if isSignedIn() && isAdmin();
          }
        }
      }
