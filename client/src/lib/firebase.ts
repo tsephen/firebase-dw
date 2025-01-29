@@ -1,6 +1,32 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile as firebaseUpdateProfile, deleteUser, sendPasswordResetEmail, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, User, updatePassword as firebaseUpdatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc, deleteDoc } from "firebase/firestore";
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  sendEmailVerification, 
+  updateProfile as firebaseUpdateProfile, 
+  deleteUser, 
+  sendPasswordResetEmail, 
+  GoogleAuthProvider, 
+  FacebookAuthProvider, 
+  signInWithPopup, 
+  User, 
+  updatePassword as firebaseUpdatePassword, 
+  EmailAuthProvider, 
+  reauthenticateWithCredential 
+} from "firebase/auth";
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  deleteDoc, 
+  collection, 
+  query, 
+  getDocs,
+  writeBatch,
+  where
+} from "firebase/firestore";
 
 // Verify Firebase config
 const requiredEnvVars = {
@@ -41,20 +67,31 @@ export type SignUpData = {
   age: number;
 };
 
+export type UserRole = 'user' | 'admin';
+
+export interface UserRoleData {
+  role: UserRole;
+  updatedAt: string;
+  updatedBy?: string;
+}
+
 // Role management functions
-export async function setUserRole(userId: string, role: 'user' | 'admin') {
+export async function setUserRole(userId: string, role: UserRole, updatedBy?: string) {
   try {
-    await setDoc(doc(db, 'userRoles', userId), {
+    const roleData: UserRoleData = {
       role,
-      updatedAt: new Date().toISOString()
-    });
+      updatedAt: new Date().toISOString(),
+      updatedBy
+    };
+
+    await setDoc(doc(db, 'userRoles', userId), roleData);
   } catch (error: any) {
     console.error('Error setting user role:', error);
     throw new Error('Failed to set user role');
   }
 }
 
-export async function getUserRole(userId: string): Promise<string> {
+export async function getUserRole(userId: string): Promise<UserRole> {
   try {
     const roleDoc = await getDoc(doc(db, 'userRoles', userId));
     return roleDoc.exists() ? roleDoc.data().role : 'user';
@@ -64,12 +101,38 @@ export async function getUserRole(userId: string): Promise<string> {
   }
 }
 
+export async function listUsersWithRoles(): Promise<{ userId: string; role: UserRole; updatedAt: string; }[]> {
+  try {
+    const rolesRef = collection(db, 'userRoles');
+    const rolesSnapshot = await getDocs(rolesRef);
+
+    return rolesSnapshot.docs.map(doc => ({
+      userId: doc.id,
+      ...(doc.data() as UserRoleData)
+    }));
+  } catch (error: any) {
+    console.error('Error listing users with roles:', error);
+    throw new Error('Failed to list users with roles');
+  }
+}
+
 // Clean up user data when account is deleted
 async function cleanupUserData(userId: string) {
   try {
-    await deleteDoc(doc(db, 'userRoles', userId));
+    const batch = writeBatch(db);
+
+    // Delete user role
+    batch.delete(doc(db, 'userRoles', userId));
+
+    // Delete other user-related collections (add more as needed)
+    // Example: user preferences, user settings, etc.
+    // batch.delete(doc(db, 'userPreferences', userId));
+
+    // Commit the batch
+    await batch.commit();
   } catch (error) {
     console.error('Error cleaning up user data:', error);
+    throw new Error('Failed to clean up user data');
   }
 }
 
@@ -193,8 +256,15 @@ export async function sendVerificationEmail() {
 export async function deleteAccount() {
   if (auth.currentUser) {
     const userId = auth.currentUser.uid;
-    await deleteUser(auth.currentUser);
-    await cleanupUserData(userId);
+    try {
+      // First, clean up user data
+      await cleanupUserData(userId);
+      // Then delete the user account
+      await deleteUser(auth.currentUser);
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      throw new Error('Failed to delete account');
+    }
   }
 }
 
