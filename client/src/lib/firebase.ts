@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile as firebaseUpdateProfile, deleteUser, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, User, updatePassword as firebaseUpdatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile as firebaseUpdateProfile, deleteUser, sendPasswordResetEmail, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, User, updatePassword as firebaseUpdatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 
 // Verify Firebase config
 const requiredEnvVars = {
@@ -25,8 +25,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 auth.useDeviceLanguage();
 
-// Configure Google Auth Provider
+// Configure Auth Providers
 const googleProvider = new GoogleAuthProvider();
+const facebookProvider = new FacebookAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
@@ -55,6 +56,8 @@ function getErrorMessage(error: any): string {
       return 'No account found with this email';
     case 'auth/requires-recent-login':
       return 'Please log in again before updating your profile';
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with the same email address but different sign-in credentials. Sign in using a provider associated with this email address.';
     default:
       console.error('Firebase auth error:', error);
       return error?.message || 'An error occurred. Please try again';
@@ -75,6 +78,30 @@ export async function signUpWithGoogle() {
 
     if (!result?.user) {
       throw new Error('No user data returned from Google sign-in');
+    }
+
+    const user = result.user;
+    const name = user.displayName || user.email?.split('@')[0] || 'User';
+
+    // Store role information in displayName with a special prefix
+    const displayNameWithRole = `${name}|role:user`;
+
+    await firebaseUpdateProfile(user, {
+      displayName: displayNameWithRole
+    });
+
+    return user;
+  } catch (error: any) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function signUpWithFacebook() {
+  try {
+    const result = await signInWithPopup(auth, facebookProvider);
+
+    if (!result?.user) {
+      throw new Error('No user data returned from Facebook sign-in');
     }
 
     const user = result.user;

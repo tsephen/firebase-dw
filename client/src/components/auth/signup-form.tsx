@@ -11,10 +11,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { signUp, signUpWithGoogle } from "@/lib/firebase";
+import { signUp, signUpWithGoogle, signUpWithFacebook } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SiGoogle } from "react-icons/si";
+import { SiGoogle, SiFacebook } from "react-icons/si";
 
 const formSchema = z.object({
   email: z.string().email(),
@@ -57,6 +57,22 @@ export function SignupForm() {
       toast({
         title: "Success",
         description: "You have been logged in with Google",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    }
+  };
+
+  const handleFacebookSignIn = async () => {
+    try {
+      await signUpWithFacebook();
+      toast({
+        title: "Success",
+        description: "You have been logged in with Facebook",
       });
     } catch (error: any) {
       toast({
@@ -144,15 +160,26 @@ export function SignupForm() {
                 </span>
               </div>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleGoogleSignIn}
-            >
-              <SiGoogle className="mr-2 h-4 w-4" />
-              Google
-            </Button>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGoogleSignIn}
+              >
+                <SiGoogle className="mr-2 h-4 w-4" />
+                Google
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleFacebookSignIn}
+              >
+                <SiFacebook className="mr-2 h-4 w-4" />
+                Facebook
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>
