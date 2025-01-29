@@ -18,6 +18,8 @@ export function ResetPasswordDialog() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event from bubbling up to parent form
+
     if (!email) {
       toast({
         variant: "destructive",
@@ -47,7 +49,10 @@ export function ResetPasswordDialog() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="link" className="px-0 font-normal">
+        <Button variant="link" className="px-0 font-normal" onClick={(e) => {
+          e.preventDefault(); // Prevent triggering parent form
+          e.stopPropagation();
+        }}>
           Forgot password?
         </Button>
       </DialogTrigger>
