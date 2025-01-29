@@ -15,8 +15,21 @@ import {
   auth,
   listUsersWithRoles,
   setUserRole,
-  type UserRole
+  type UserRole,
+  deleteAccount
 } from "@/lib/firebase";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 
 type UserWithRole = {
   userId: string;
@@ -87,6 +100,26 @@ export default function Admin() {
     }
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await deleteAccount(userId); // Assuming deleteAccount now accepts userId
+
+      // Update local state to remove the deleted user
+      setUsers(prevUsers => prevUsers.filter(u => u.userId !== userId));
+
+      toast({
+        title: "Success",
+        description: "User account and related data deleted successfully"
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete user account"
+      });
+    }
+  };
+
   if (loading || loadingUsers) {
     return (
       <div className="container py-8">
@@ -124,18 +157,51 @@ export default function Admin() {
                   {new Date(user.updatedAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      handleRoleChange(
-                        user.userId,
-                        user.role === "admin" ? "user" : "admin"
-                      )
-                    }
-                  >
-                    {user.role === "admin" ? "Remove Admin" : "Make Admin"}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        handleRoleChange(
+                          user.userId,
+                          user.role === "admin" ? "user" : "admin"
+                        )
+                      }
+                    >
+                      {user.role === "admin" ? "Remove Admin" : "Make Admin"}
+                    </Button>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="gap-2"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete User Account</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the
+                            user account and all associated data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteUser(user.userId)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

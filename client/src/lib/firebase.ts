@@ -128,15 +128,55 @@ async function cleanupUserData(userId: string) {
     // Delete user role
     batch.delete(doc(db, 'userRoles', userId));
 
-    // Delete other user-related collections (add more as needed)
-    // Example: user preferences, user settings, etc.
-    // batch.delete(doc(db, 'userPreferences', userId));
+    // Delete user preferences if they exist
+    batch.delete(doc(db, 'userPreferences', userId));
+
+    // Delete user profile data
+    batch.delete(doc(db, 'userProfiles', userId));
+
+    // Delete user activity logs
+    const activityRef = collection(db, 'userActivity');
+    const q = query(activityRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+    snapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // Delete user sessions
+    const sessionsRef = collection(db, 'userSessions');
+    const sessionQuery = query(sessionsRef, where('userId', '==', userId));
+    const sessionSnapshot = await getDocs(sessionQuery);
+    sessionSnapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
 
     // Commit the batch
     await batch.commit();
+    console.log(`Successfully cleaned up all data for user ${userId}`);
   } catch (error) {
     console.error('Error cleaning up user data:', error);
     throw new Error('Failed to clean up user data');
+  }
+}
+
+// Modify the deleteAccount function to handle the cleanup properly
+export async function deleteAccount() {
+  if (!auth.currentUser) {
+    throw new Error('No user is currently signed in');
+  }
+
+  const userId = auth.currentUser.uid;
+  try {
+    // First, clean up user data
+    await cleanupUserData(userId);
+
+    // Then delete the user account
+    await deleteUser(auth.currentUser);
+
+    console.log('Account successfully deleted with all related data');
+  } catch (error: any) {
+    console.error('Error deleting account:', error);
+    throw new Error(getErrorMessage(error));
   }
 }
 
@@ -257,20 +297,6 @@ export async function sendVerificationEmail() {
   }
 }
 
-export async function deleteAccount() {
-  if (auth.currentUser) {
-    const userId = auth.currentUser.uid;
-    try {
-      // First, clean up user data
-      await cleanupUserData(userId);
-      // Then delete the user account
-      await deleteUser(auth.currentUser);
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      throw new Error('Failed to delete account');
-    }
-  }
-}
 
 export async function resetPassword(email: string) {
   try {
