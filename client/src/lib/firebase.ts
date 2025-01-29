@@ -204,8 +204,15 @@ export async function adminDeleteUser(userId: string) {
 
     // First delete the user's role document
     try {
-      await deleteDoc(doc(db, 'userRoles', userId));
-      console.log(`Successfully deleted role document for user ${userId}`);
+      const roleRef = doc(db, 'userRoles', userId);
+      const roleDoc = await getDoc(roleRef);
+
+      if (roleDoc.exists()) {
+        await deleteDoc(roleRef);
+        console.log(`Successfully deleted role document for user ${userId}`);
+      } else {
+        console.log(`No role document found for user ${userId}`);
+      }
     } catch (error) {
       console.error('Error deleting role document:', error);
       throw new Error('Failed to delete user role');
@@ -214,16 +221,10 @@ export async function adminDeleteUser(userId: string) {
     // Clean up other user data if it exists
     await cleanupUserData(userId);
 
-    // Get the user reference from Firebase Auth
-    try {
-      // Note: You need to use the Admin SDK to delete other users
-      // For now, we'll just delete their Firestore data
-      console.log('Successfully deleted user data from Firestore');
-      return true;
-    } catch (error: any) {
-      console.error('Error deleting user from Authentication:', error);
-      throw new Error('Failed to delete user from Authentication');
-    }
+    // Note: You need to use the Admin SDK to delete users from Authentication
+    // For now, we'll just delete their Firestore data
+    console.log('Successfully deleted user data from Firestore');
+    return true;
   } catch (error: any) {
     console.error('Error in admin delete user:', error);
     throw new Error(getErrorMessage(error));
