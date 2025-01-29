@@ -7,14 +7,34 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Welcome from "@/pages/welcome";
 import Admin from "@/pages/admin";
+import { useAuth } from "@/lib/auth";
+import { VerifyEmail } from "@/components/auth/verify-email";
 
 // Initialize Firebase before rendering the app
 import "./lib/firebase";
 
 function Router() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return null;
+  }
+
+  if (!user) {
+    return <Landing />;
+  }
+
+  if (!user.emailVerified) {
+    return (
+      <div className="container flex min-h-screen items-center justify-center">
+        <VerifyEmail />
+      </div>
+    );
+  }
+
   return (
     <Switch>
-      <Route path="/" component={Landing} />
+      <Route path="/" component={Welcome} />
       <Route path="/welcome" component={Welcome} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />

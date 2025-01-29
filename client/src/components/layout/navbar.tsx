@@ -19,7 +19,7 @@ export function Navbar() {
             {user && user.emailVerified && (
               <>
                 <Link href="/welcome">Welcome</Link>
-                {user.customClaims?.admin && (
+                {user.photoURL && JSON.parse(user.photoURL).role === 'admin' && (
                   <Link href="/admin">Admin</Link>
                 )}
               </>
