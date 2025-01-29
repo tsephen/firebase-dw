@@ -120,73 +120,6 @@ export async function listUsersWithRoles(): Promise<{ userId: string; role: User
   }
 }
 
-// Clean up user data when account is deleted
-async function cleanupUserData(userId: string) {
-  try {
-    const batch = writeBatch(db);
-    let deletionCount = 0;
-
-    // Delete user role
-    const roleRef = doc(db, 'userRoles', userId);
-    const roleDoc = await getDoc(roleRef);
-    if (roleDoc.exists()) {
-      batch.delete(roleRef);
-      deletionCount++;
-      console.log(`Found and marked user role for deletion: ${userId}`);
-    } else {
-      console.log(`No user role found for: ${userId}`);
-    }
-
-    // Delete user preferences
-    const prefRef = doc(db, 'userPreferences', userId);
-    const prefDoc = await getDoc(prefRef);
-    if (prefDoc.exists()) {
-      batch.delete(prefRef);
-      deletionCount++;
-      console.log(`Found and marked user preferences for deletion: ${userId}`);
-    }
-
-    // Delete user profile
-    const profileRef = doc(db, 'userProfiles', userId);
-    const profileDoc = await getDoc(profileRef);
-    if (profileDoc.exists()) {
-      batch.delete(profileRef);
-      deletionCount++;
-      console.log(`Found and marked user profile for deletion: ${userId}`);
-    }
-
-    // Delete user activity logs
-    const activityRef = collection(db, 'userActivity');
-    const activityQuery = query(activityRef, where('userId', '==', userId));
-    const activitySnapshot = await getDocs(activityQuery);
-    activitySnapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-      deletionCount++;
-    });
-    console.log(`Found and marked ${activitySnapshot.docs.length} activity logs for deletion`);
-
-    // Delete user sessions
-    const sessionsRef = collection(db, 'userSessions');
-    const sessionQuery = query(sessionsRef, where('userId', '==', userId));
-    const sessionSnapshot = await getDocs(sessionQuery);
-    sessionSnapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-      deletionCount++;
-    });
-    console.log(`Found and marked ${sessionSnapshot.docs.length} sessions for deletion`);
-
-    if (deletionCount > 0) {
-      // Commit the batch
-      await batch.commit();
-      console.log(`Successfully deleted ${deletionCount} documents for user ${userId}`);
-    } else {
-      console.log(`No documents found to delete for user ${userId}`);
-    }
-  } catch (error) {
-    console.error('Error cleaning up user data:', error);
-    // Don't throw here as some cleanup is better than none
-  }
-}
 
 // Admin function to delete a user and their data
 export async function adminDeleteUser(userId: string) {
@@ -235,13 +168,10 @@ export async function deleteAccount() {
 
   const userId = auth.currentUser.uid;
   try {
-    // Clean up user data
-    await cleanupUserData(userId);
-
     // Delete the user account
     await deleteUser(auth.currentUser);
 
-    console.log('Account successfully deleted with all related data');
+    console.log('Account successfully deleted');
   } catch (error: any) {
     console.error('Error deleting account:', error);
     throw new Error(getErrorMessage(error));
