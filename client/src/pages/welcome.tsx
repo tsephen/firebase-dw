@@ -45,9 +45,11 @@ export default function Welcome() {
     );
   }
 
+  const displayName = user?.displayName?.split('|')[0] || 'User';
+
   return (
     <div className="container py-8">
-      <h1 className="text-3xl font-bold">Welcome, {user?.displayName}!</h1>
+      <h1 className="text-3xl font-bold">Welcome, {displayName}!</h1>
       <p className="mt-4 text-muted-foreground">
         You've successfully logged in and verified your email.
       </p>
