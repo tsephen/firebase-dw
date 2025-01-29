@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile as firebaseUpdateProfile, deleteUser, sendPasswordResetEmail, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, User, updatePassword as firebaseUpdatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc, deleteDoc } from "firebase/firestore";
 
 // Verify Firebase config
 const requiredEnvVars = {
@@ -23,6 +24,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 auth.useDeviceLanguage();
 
 // Configure Auth Providers
@@ -38,6 +40,38 @@ export type SignUpData = {
   name: string;
   age: number;
 };
+
+// Role management functions
+export async function setUserRole(userId: string, role: 'user' | 'admin') {
+  try {
+    await setDoc(doc(db, 'userRoles', userId), {
+      role,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Error setting user role:', error);
+    throw new Error('Failed to set user role');
+  }
+}
+
+export async function getUserRole(userId: string): Promise<string> {
+  try {
+    const roleDoc = await getDoc(doc(db, 'userRoles', userId));
+    return roleDoc.exists() ? roleDoc.data().role : 'user';
+  } catch (error: any) {
+    console.error('Error getting user role:', error);
+    return 'user'; // Default to user role if there's an error
+  }
+}
+
+// Clean up user data when account is deleted
+async function cleanupUserData(userId: string) {
+  try {
+    await deleteDoc(doc(db, 'userRoles', userId));
+  } catch (error) {
+    console.error('Error cleaning up user data:', error);
+  }
+}
 
 function getErrorMessage(error: any): string {
   if (typeof error === 'string') return error;
@@ -83,11 +117,11 @@ export async function signUpWithGoogle() {
     const user = result.user;
     const name = user.displayName || user.email?.split('@')[0] || 'User';
 
-    // Store role information in displayName with a special prefix
-    const displayNameWithRole = `${name}|role:user`;
+    // Set default role for new users
+    await setUserRole(user.uid, 'user');
 
     await firebaseUpdateProfile(user, {
-      displayName: displayNameWithRole
+      displayName: name
     });
 
     return user;
@@ -107,11 +141,11 @@ export async function signUpWithFacebook() {
     const user = result.user;
     const name = user.displayName || user.email?.split('@')[0] || 'User';
 
-    // Store role information in displayName with a special prefix
-    const displayNameWithRole = `${name}|role:user`;
+    // Set default role for new users
+    await setUserRole(user.uid, 'user');
 
     await firebaseUpdateProfile(user, {
-      displayName: displayNameWithRole
+      displayName: name
     });
 
     return user;
@@ -124,12 +158,13 @@ export async function signUp({ email, password, name, age }: SignUpData) {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-    // Store role and age information in displayName with special prefix
-    const displayNameWithRole = `${name}|role:user|age:${age}`;
+    // Set default role for new users
+    await setUserRole(userCredential.user.uid, 'user');
 
     await firebaseUpdateProfile(userCredential.user, {
-      displayName: displayNameWithRole
+      displayName: name
     });
+
     await sendEmailVerification(userCredential.user);
     return userCredential.user;
   } catch (error: any) {
@@ -157,7 +192,9 @@ export async function sendVerificationEmail() {
 
 export async function deleteAccount() {
   if (auth.currentUser) {
+    const userId = auth.currentUser.uid;
     await deleteUser(auth.currentUser);
+    await cleanupUserData(userId);
   }
 }
 
@@ -167,12 +204,6 @@ export async function resetPassword(email: string) {
   } catch (error: any) {
     throw new Error(getErrorMessage(error));
   }
-}
-
-export function getUserRole(displayName: string | null): string {
-  if (!displayName) return 'user';
-  const roleMatch = displayName.match(/\|role:(\w+)/);
-  return roleMatch ? roleMatch[1] : 'user';
 }
 
 export async function updatePassword(user: User, currentPassword: string, newPassword: string) {
@@ -191,4 +222,4 @@ export async function updatePassword(user: User, currentPassword: string, newPas
   }
 }
 
-export { auth };
+export { auth, db };

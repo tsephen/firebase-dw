@@ -5,21 +5,27 @@ import { onAuthStateChanged, User } from "firebase/auth";
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<string>('user');
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      if (user) {
+        // Fetch user role from Firestore
+        const userRole = await getUserRole(user.uid);
+        setRole(userRole);
+      }
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  return { user, loading };
+  return { user, loading, role };
 }
 
 export function useRequireAuth(redirectTo: string = "/") {
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
   const [verified, setVerified] = useState(false);
 
   useEffect(() => {
@@ -35,23 +41,20 @@ export function useRequireAuth(redirectTo: string = "/") {
     }
   }, [user, loading, redirectTo]);
 
-  return { user, loading, verified };
+  return { user, loading, verified, role };
 }
 
 export function useRequireAdmin(redirectTo: string = "/") {
-  const { user, loading } = useRequireAuth(redirectTo);
+  const { user, loading, role } = useRequireAuth(redirectTo);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      const role = getUserRole(user.displayName);
-      if (role !== 'admin') {
-        window.location.href = redirectTo;
-      } else {
-        setIsAdmin(true);
-      }
+    if (user && role !== 'admin') {
+      window.location.href = redirectTo;
+    } else if (role === 'admin') {
+      setIsAdmin(true);
     }
-  }, [user, redirectTo]);
+  }, [user, role, redirectTo]);
 
   return { user, loading, isAdmin };
 }

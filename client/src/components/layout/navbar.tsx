@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { signOut, getUserRole } from "@/lib/firebase";
+import { signOut } from "@/lib/firebase";
 import { Link } from "wouter";
 import { UserCircle } from "lucide-react";
 
 export function Navbar() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -20,7 +20,7 @@ export function Navbar() {
             {user && user.emailVerified && (
               <>
                 <Link href="/welcome">Welcome</Link>
-                {user.displayName && getUserRole(user.displayName) === 'admin' && (
+                {role === 'admin' && (
                   <Link href="/admin">Admin</Link>
                 )}
               </>
@@ -38,7 +38,7 @@ export function Navbar() {
                 <Link href="/profile">
                   <UserCircle className="h-4 w-4" />
                   <span className="text-sm text-muted-foreground">
-                    {user.displayName?.split('|')[0]}
+                    {user.displayName}
                   </span>
                 </Link>
               </Button>
