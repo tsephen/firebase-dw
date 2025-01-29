@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function Profile() {
-  const { user, loading } = useRequireAuth();
+  const { user, loading, role } = useRequireAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState("");
@@ -25,8 +25,7 @@ export default function Profile() {
     );
   }
 
-  const displayName = user?.displayName?.split('|')[0] || 'User';
-  const role = user?.displayName?.match(/\|role:(\w+)/)?.[1] || 'user';
+  const displayName = user?.displayName || 'User';
   const isFacebookUser = user?.providerData.some(
     provider => provider.providerId === 'facebook.com'
   );
@@ -34,9 +33,8 @@ export default function Profile() {
   const handleUpdateProfile = async () => {
     try {
       if (newDisplayName) {
-        const roleAndAge = user?.displayName?.match(/\|.+$/)?.[0] || '';
         await updateProfile(user!, {
-          displayName: newDisplayName + roleAndAge
+          displayName: newDisplayName
         });
         toast({
           title: "Success",
@@ -115,10 +113,12 @@ export default function Profile() {
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label>Role</Label>
-            <p className="text-sm text-muted-foreground capitalize">{role}</p>
-          </div>
+          {role === 'admin' && (
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <p className="text-sm text-muted-foreground capitalize">{role}</p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Email Status</Label>
