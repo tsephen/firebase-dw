@@ -36,7 +36,12 @@ function Router() {
     return <Landing />;
   }
 
-  if (!user.emailVerified) {
+  // Skip email verification for Facebook users
+  const isFacebookUser = user.providerData.some(
+    provider => provider.providerId === 'facebook.com'
+  );
+
+  if (!user.emailVerified && !isFacebookUser) {
     return (
       <div className="container flex min-h-screen items-center justify-center">
         <VerifyEmail />

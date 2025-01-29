@@ -27,6 +27,9 @@ export default function Profile() {
 
   const displayName = user?.displayName?.split('|')[0] || 'User';
   const role = user?.displayName?.match(/\|role:(\w+)/)?.[1] || 'user';
+  const isFacebookUser = user?.providerData.some(
+    provider => provider.providerId === 'facebook.com'
+  );
 
   const handleUpdateProfile = async () => {
     try {
@@ -81,7 +84,7 @@ export default function Profile() {
   return (
     <div className="container py-8 space-y-6">
       <h1 className="text-3xl font-bold">Profile Settings</h1>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Personal Information</CardTitle>
@@ -91,7 +94,7 @@ export default function Profile() {
             <Label>Email</Label>
             <p className="text-sm text-muted-foreground">{user?.email}</p>
           </div>
-          
+
           <div className="space-y-2">
             <Label>Display Name</Label>
             {isEditing ? (
@@ -120,7 +123,11 @@ export default function Profile() {
           <div className="space-y-2">
             <Label>Email Status</Label>
             <p className="text-sm text-muted-foreground">
-              {user?.emailVerified ? "Verified" : "Not verified"}
+              {isFacebookUser 
+                ? "Verified by Facebook" 
+                : user?.emailVerified 
+                  ? "Verified" 
+                  : "Not verified"}
             </p>
           </div>
         </CardContent>
