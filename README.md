@@ -69,38 +69,6 @@ npm install
            allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
            allow delete: if isAdmin();
          }
-
-         // User preferences collection
-         match /userPreferences/{userId} {
-           allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-           allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-           allow delete: if isAdmin();
-         }
-
-         // User profiles collection
-         match /userProfiles/{userId} {
-           allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-           allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-           allow delete: if isAdmin();
-         }
-
-         // User activity logs collection
-         match /userActivity/{docId} {
-           allow read: if isSignedIn() && 
-             (request.auth.uid == resource.data.userId || isAdmin());
-           allow write: if isSignedIn() && 
-             (request.auth.uid == request.resource.data.userId || isAdmin());
-           allow delete: if isAdmin();
-         }
-
-         // User sessions collection
-         match /userSessions/{docId} {
-           allow read: if isSignedIn() && 
-             (request.auth.uid == resource.data.userId || isAdmin());
-           allow write: if isSignedIn() && 
-             (request.auth.uid == request.resource.data.userId || isAdmin());
-           allow delete: if isAdmin();
-         }
        }
      }
      ```
