@@ -1,6 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, deleteUser, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
+// Verify all required Firebase config values are present
+if (!import.meta.env.VITE_FIREBASE_API_KEY || !import.meta.env.VITE_FIREBASE_PROJECT_ID || !import.meta.env.VITE_FIREBASE_APP_ID) {
+  throw new Error("Missing required Firebase configuration. Please check your environment variables.");
+}
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
@@ -9,9 +14,15 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+auth.useDeviceLanguage(); // Set auth language to match device
+
 const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
 
 export type SignUpData = {
   email: string;
@@ -38,7 +49,12 @@ function getErrorMessage(code: string): string {
       return 'Only one sign in window can be open at a time';
     case 'auth/popup-blocked':
       return 'Sign in popup was blocked by your browser. Please allow popups for this site';
+    case 'auth/operation-not-allowed':
+      return 'Google sign-in is not enabled. Please contact support.';
+    case 'auth/network-request-failed':
+      return 'Network error occurred. Please check your connection.';
     default:
+      console.error('Firebase auth error:', code);
       return 'An error occurred. Please try again';
   }
 }
@@ -47,6 +63,10 @@ export async function signUpWithGoogle() {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
+
+    if (!user) {
+      throw new Error('No user data returned from Google sign-in');
+    }
 
     // Get user's name from Google profile
     const name = user.displayName || user.email?.split('@')[0] || 'User';
@@ -59,6 +79,7 @@ export async function signUpWithGoogle() {
 
     return user;
   } catch (error: any) {
+    console.error('Google sign-in error:', error);
     throw new Error(getErrorMessage(error.code));
   }
 }
@@ -108,3 +129,5 @@ export async function resetPassword(email: string) {
     throw new Error(getErrorMessage(error.code));
   }
 }
+
+export { auth };
