@@ -11,10 +11,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { signIn } from "@/lib/firebase";
+import { signIn, signUpWithGoogle } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResetPasswordDialog } from "./reset-password-dialog";
+import { SiGoogle } from "react-icons/si";
 
 const formSchema = z.object({
   email: z.string().email(),
@@ -46,6 +47,22 @@ export function LoginForm() {
       });
     }
   }
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signUpWithGoogle();
+      toast({
+        title: "Success",
+        description: "You have been logged in with Google",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    }
+  };
 
   return (
     <Card className="w-[350px]">
@@ -87,6 +104,25 @@ export function LoginForm() {
             </div>
             <Button type="submit" className="w-full">
               Sign in
+            </Button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignIn}
+            >
+              <SiGoogle className="mr-2 h-4 w-4" />
+              Google
             </Button>
           </form>
         </Form>

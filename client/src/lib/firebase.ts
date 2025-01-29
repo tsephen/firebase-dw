@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, deleteUser, sendPasswordResetEmail } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, deleteUser, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,6 +11,7 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
 
 export type SignUpData = {
   email: string;
@@ -31,8 +32,34 @@ function getErrorMessage(code: string): string {
       return 'Please enter a valid email address';
     case 'auth/user-not-found':
       return 'No account found with this email';
+    case 'auth/popup-closed-by-user':
+      return 'Sign in was cancelled. Please try again.';
+    case 'auth/cancelled-popup-request':
+      return 'Only one sign in window can be open at a time';
+    case 'auth/popup-blocked':
+      return 'Sign in popup was blocked by your browser. Please allow popups for this site';
     default:
       return 'An error occurred. Please try again';
+  }
+}
+
+export async function signUpWithGoogle() {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+
+    // Get user's name from Google profile
+    const name = user.displayName || user.email?.split('@')[0] || 'User';
+
+    // Update profile with role
+    await updateProfile(user, {
+      displayName: name,
+      photoURL: JSON.stringify({ role: 'user' }) // We don't have age from Google
+    });
+
+    return user;
+  } catch (error: any) {
+    throw new Error(getErrorMessage(error.code));
   }
 }
 
