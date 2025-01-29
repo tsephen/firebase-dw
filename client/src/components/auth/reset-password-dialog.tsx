@@ -18,12 +18,22 @@ export function ResetPasswordDialog() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter your email address",
+      });
+      return;
+    }
+
     try {
       await resetPassword(email);
       toast({
         title: "Success",
         description: "Password reset email sent. Please check your inbox.",
       });
+      setEmail(""); // Clear the email input after success
       setIsOpen(false);
     } catch (error: any) {
       toast({
