@@ -43,7 +43,7 @@ export function LoginForm() {
       console.error("Email/Password login error:", error);
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Login Error",
         description: error.message || "Failed to log in. Please try again.",
       });
     }
@@ -52,22 +52,20 @@ export function LoginForm() {
   const handleGoogleSignIn = async () => {
     try {
       console.log("Starting Google sign-in process...");
-      const result = await signUpWithGoogle();
-      console.log("Google sign-in successful:", result);
+      await signUpWithGoogle();
       toast({
         title: "Success",
         description: "You have been logged in with Google",
       });
     } catch (error: any) {
       console.error("Google sign-in error details:", {
-        code: error.code,
         message: error.message,
-        fullError: error
+        error
       });
       toast({
         variant: "destructive",
         title: "Google Sign-In Error",
-        description: error.message || "Failed to sign in with Google. Please try again.",
+        description: error.message,
       });
     }
   };

@@ -1,30 +1,36 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, deleteUser, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
-// Verify all required Firebase config values are present
-if (!import.meta.env.VITE_FIREBASE_API_KEY || !import.meta.env.VITE_FIREBASE_PROJECT_ID || !import.meta.env.VITE_FIREBASE_APP_ID) {
+// Verify Firebase config
+const requiredEnvVars = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY?.trim(),
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim(),
+  appId: import.meta.env.VITE_FIREBASE_APP_ID?.trim()
+};
+
+if (Object.values(requiredEnvVars).some(value => !value)) {
   throw new Error("Missing required Firebase configuration. Please check your environment variables.");
 }
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: requiredEnvVars.apiKey,
+  authDomain: `${requiredEnvVars.projectId}.firebaseapp.com`,
+  projectId: requiredEnvVars.projectId,
+  storageBucket: `${requiredEnvVars.projectId}.appspot.com`,
+  appId: requiredEnvVars.appId,
 };
 
 console.log("Initializing Firebase with config:", {
   projectId: firebaseConfig.projectId,
   authDomain: firebaseConfig.authDomain,
-  // Don't log sensitive values like apiKey
 });
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-auth.useDeviceLanguage(); // Set auth language to match device
+auth.useDeviceLanguage();
 
+// Configure Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
@@ -37,7 +43,10 @@ export type SignUpData = {
   age: number;
 };
 
-function getErrorMessage(code: string): string {
+function getErrorMessage(error: any): string {
+  if (typeof error === 'string') return error;
+
+  const code = error?.code;
   switch (code) {
     case 'auth/invalid-credential':
       return 'Incorrect email or password';
@@ -60,8 +69,8 @@ function getErrorMessage(code: string): string {
     case 'auth/network-request-failed':
       return 'Network error occurred. Please check your connection.';
     default:
-      console.error('Firebase auth error:', code);
-      return 'An error occurred. Please try again';
+      console.error('Firebase auth error:', error);
+      return error?.message || 'An error occurred. Please try again';
   }
 }
 
@@ -69,31 +78,27 @@ export async function signUpWithGoogle() {
   try {
     console.log("Starting Google sign-in process...");
     const result = await signInWithPopup(auth, googleProvider);
-    console.log("Google sign-in successful, processing user data...");
-    const user = result.user;
 
-    if (!user) {
+    if (!result?.user) {
       throw new Error('No user data returned from Google sign-in');
     }
 
-    // Get user's name from Google profile
+    const user = result.user;
     const name = user.displayName || user.email?.split('@')[0] || 'User';
 
-    // Update profile with role
     await updateProfile(user, {
       displayName: name,
-      photoURL: JSON.stringify({ role: 'user' }) // We don't have age from Google
+      photoURL: JSON.stringify({ role: 'user' })
     });
 
-    console.log("User profile updated successfully");
     return user;
   } catch (error: any) {
     console.error('Google sign-in error:', {
-      code: error.code,
-      message: error.message,
+      code: error?.code,
+      message: error?.message,
       fullError: error
     });
-    throw new Error(getErrorMessage(error.code));
+    throw new Error(getErrorMessage(error));
   }
 }
 
@@ -107,7 +112,7 @@ export async function signUp({ email, password, name, age }: SignUpData) {
     await sendEmailVerification(userCredential.user);
     return userCredential.user;
   } catch (error: any) {
-    throw new Error(getErrorMessage(error.code));
+    throw new Error(getErrorMessage(error));
   }
 }
 
@@ -115,7 +120,7 @@ export async function signIn(email: string, password: string) {
   try {
     return await signInWithEmailAndPassword(auth, email, password);
   } catch (error: any) {
-    throw new Error(getErrorMessage(error.code));
+    throw new Error(getErrorMessage(error));
   }
 }
 
@@ -139,7 +144,7 @@ export async function resetPassword(email: string) {
   try {
     await sendPasswordResetEmail(auth, email);
   } catch (error: any) {
-    throw new Error(getErrorMessage(error.code));
+    throw new Error(getErrorMessage(error));
   }
 }
 
