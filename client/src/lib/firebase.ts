@@ -202,24 +202,26 @@ export async function adminDeleteUser(userId: string) {
       throw new Error('Only admins can delete other users');
     }
 
-    // First delete the user's role document
-    try {
-      const roleRef = doc(db, 'userRoles', userId);
-      const roleDoc = await getDoc(roleRef);
+    // First delete the user's role document from Firestore
+    console.log(`Attempting to delete role document for user ${userId}`);
+    const roleRef = doc(db, 'userRoles', userId);
 
-      if (roleDoc.exists()) {
-        await deleteDoc(roleRef);
-        console.log(`Successfully deleted role document for user ${userId}`);
-      } else {
-        console.log(`No role document found for user ${userId}`);
-      }
+    try {
+      await deleteDoc(roleRef);
+      console.log(`Successfully deleted role document for user ${userId}`);
     } catch (error) {
       console.error('Error deleting role document:', error);
-      throw new Error('Failed to delete user role');
+      throw new Error('Failed to delete user role from Firestore');
     }
 
     // Clean up other user data if it exists
-    await cleanupUserData(userId);
+    try {
+      await cleanupUserData(userId);
+      console.log('Successfully cleaned up additional user data');
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+      // Continue with deletion even if cleanup fails
+    }
 
     // Note: You need to use the Admin SDK to delete users from Authentication
     // For now, we'll just delete their Firestore data
