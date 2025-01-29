@@ -26,7 +26,11 @@ export function useRequireAuth(redirectTo: string = "/") {
     if (!loading && !user) {
       window.location.href = redirectTo;
     }
-    if (user && user.emailVerified) {
+
+    // Consider user verified if:
+    // 1. Their email is verified OR
+    // 2. They signed in with Facebook
+    if (user && (user.emailVerified || user.providerData.some(provider => provider.providerId === 'facebook.com'))) {
       setVerified(true);
     }
   }, [user, loading, redirectTo]);

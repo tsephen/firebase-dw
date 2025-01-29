@@ -9,9 +9,12 @@ export function VerifyEmail() {
   const { toast } = useToast();
   const [checking, setChecking] = useState(false);
 
-  // Skip verification for Facebook users
-  if (auth.currentUser?.providerData.some(provider => provider.providerId === 'facebook.com')) {
-    window.location.reload();
+  // If user is signed in with Facebook, they don't need email verification
+  const isFacebookUser = auth.currentUser?.providerData.some(
+    provider => provider.providerId === 'facebook.com'
+  );
+
+  if (isFacebookUser) {
     return null;
   }
 
@@ -75,7 +78,7 @@ export function VerifyEmail() {
             className="w-full"
             disabled={checking}
           >
-            {checking ? "Checking..." : "Verified and Continue"}
+            {checking ? "Checking..." : "Verify and Continue"}
           </Button>
           <Button 
             onClick={handleResend} 
