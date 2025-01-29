@@ -78,6 +78,7 @@ export interface UserRoleData {
 // Role management functions
 export async function setUserRole(userId: string, role: UserRole, updatedBy?: string) {
   try {
+    console.log(`Setting role ${role} for user ${userId}`);
     const roleData: UserRoleData = {
       role,
       updatedAt: new Date().toISOString(),
@@ -85,9 +86,10 @@ export async function setUserRole(userId: string, role: UserRole, updatedBy?: st
     };
 
     await setDoc(doc(db, 'userRoles', userId), roleData);
+    console.log(`Successfully set role for user ${userId}`);
   } catch (error: any) {
     console.error('Error setting user role:', error);
-    throw new Error('Failed to set user role');
+    throw new Error(`Failed to set user role: ${error.message}`);
   }
 }
 
