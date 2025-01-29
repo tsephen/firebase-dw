@@ -23,10 +23,7 @@ export async function signUp({ email, password, name, age }: SignUpData) {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(userCredential.user, {
     displayName: name,
-  });
-  await userCredential.user.setCustomUserClaims({
-    age,
-    role: 'user'
+    photoURL: JSON.stringify({ age, role: 'user' }) // Store additional data in photoURL
   });
   await sendEmailVerification(userCredential.user);
   return userCredential.user;

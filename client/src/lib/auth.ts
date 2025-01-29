@@ -36,12 +36,22 @@ export function useRequireAuth(redirectTo: string = "/") {
 
 export function useRequireAdmin(redirectTo: string = "/") {
   const { user, loading } = useRequireAuth(redirectTo);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (user && !user.customClaims?.admin) {
-      window.location.href = redirectTo;
+    if (user) {
+      try {
+        const profileData = JSON.parse(user.photoURL || '{}');
+        if (profileData.role !== 'admin') {
+          window.location.href = redirectTo;
+        } else {
+          setIsAdmin(true);
+        }
+      } catch (e) {
+        window.location.href = redirectTo;
+      }
     }
   }, [user, redirectTo]);
 
-  return { user, loading };
+  return { user, loading, isAdmin };
 }
