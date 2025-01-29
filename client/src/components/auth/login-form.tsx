@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ResetPasswordDialog } from "./reset-password-dialog";
 
 const formSchema = z.object({
   email: z.string().email(),
@@ -77,6 +78,7 @@ export function LoginForm() {
                     <Input type="password" {...field} />
                   </FormControl>
                   <FormMessage />
+                  <ResetPasswordDialog />
                 </FormItem>
               )}
             />
