@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Welcome from "@/pages/welcome";
 import Admin from "@/pages/admin";
+import Profile from "@/pages/profile";
 import { useAuth } from "@/lib/auth";
 import { VerifyEmail } from "@/components/auth/verify-email";
 
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/" component={Welcome} />
       <Route path="/welcome" component={Welcome} />
       <Route path="/admin" component={Admin} />
+      <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );

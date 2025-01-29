@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { signOut, getUserRole } from "@/lib/firebase";
 import { Link } from "wouter";
+import { UserCircle } from "lucide-react";
 
 export function Navbar() {
   const { user } = useAuth();
@@ -29,9 +30,18 @@ export function Navbar() {
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           {user ? (
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">
-                {user.displayName?.split('|')[0]}
-              </span>
+              <Button
+                variant="ghost"
+                className="gap-2"
+                asChild
+              >
+                <Link href="/profile">
+                  <UserCircle className="h-4 w-4" />
+                  <span className="text-sm text-muted-foreground">
+                    {user.displayName?.split('|')[0]}
+                  </span>
+                </Link>
+              </Button>
               <Button
                 variant="ghost"
                 onClick={() => signOut()}

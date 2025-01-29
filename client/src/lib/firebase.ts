@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, deleteUser, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile as firebaseUpdateProfile, deleteUser, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, User, updatePassword as firebaseUpdatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 
 // Verify Firebase config
 const requiredEnvVars = {
@@ -19,11 +19,6 @@ const firebaseConfig = {
   storageBucket: `${requiredEnvVars.projectId}.appspot.com`,
   appId: requiredEnvVars.appId,
 };
-
-console.log("Initializing Firebase with config:", {
-  projectId: firebaseConfig.projectId,
-  authDomain: firebaseConfig.authDomain,
-});
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -58,25 +53,24 @@ function getErrorMessage(error: any): string {
       return 'Please enter a valid email address';
     case 'auth/user-not-found':
       return 'No account found with this email';
-    case 'auth/popup-closed-by-user':
-      return 'Sign in was cancelled. Please try again.';
-    case 'auth/cancelled-popup-request':
-      return 'Only one sign in window can be open at a time';
-    case 'auth/popup-blocked':
-      return 'Sign in popup was blocked by your browser. Please allow popups for this site';
-    case 'auth/operation-not-allowed':
-      return 'Google sign-in is not enabled. Please contact support.';
-    case 'auth/network-request-failed':
-      return 'Network error occurred. Please check your connection.';
+    case 'auth/requires-recent-login':
+      return 'Please log in again before updating your profile';
     default:
       console.error('Firebase auth error:', error);
       return error?.message || 'An error occurred. Please try again';
   }
 }
 
+export async function updateProfile(user: User, updates: { displayName?: string }) {
+  try {
+    await firebaseUpdateProfile(user, updates);
+  } catch (error: any) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
 export async function signUpWithGoogle() {
   try {
-    console.log("Starting Google sign-in process...");
     const result = await signInWithPopup(auth, googleProvider);
 
     if (!result?.user) {
@@ -89,17 +83,12 @@ export async function signUpWithGoogle() {
     // Store role information in displayName with a special prefix
     const displayNameWithRole = `${name}|role:user`;
 
-    await updateProfile(user, {
+    await firebaseUpdateProfile(user, {
       displayName: displayNameWithRole
     });
 
     return user;
   } catch (error: any) {
-    console.error('Google sign-in error:', {
-      code: error?.code,
-      message: error?.message,
-      fullError: error
-    });
     throw new Error(getErrorMessage(error));
   }
 }
@@ -111,7 +100,7 @@ export async function signUp({ email, password, name, age }: SignUpData) {
     // Store role and age information in displayName with special prefix
     const displayNameWithRole = `${name}|role:user|age:${age}`;
 
-    await updateProfile(userCredential.user, {
+    await firebaseUpdateProfile(userCredential.user, {
       displayName: displayNameWithRole
     });
     await sendEmailVerification(userCredential.user);
@@ -153,11 +142,26 @@ export async function resetPassword(email: string) {
   }
 }
 
-// Helper function to get user role from displayName
 export function getUserRole(displayName: string | null): string {
   if (!displayName) return 'user';
   const roleMatch = displayName.match(/\|role:(\w+)/);
   return roleMatch ? roleMatch[1] : 'user';
+}
+
+export async function updatePassword(user: User, currentPassword: string, newPassword: string) {
+  try {
+    // Re-authenticate user before changing password
+    const credential = EmailAuthProvider.credential(
+      user.email!,
+      currentPassword
+    );
+    await reauthenticateWithCredential(user, credential);
+
+    // Update password
+    await firebaseUpdatePassword(user, newPassword);
+  } catch (error: any) {
+    throw new Error(getErrorMessage(error));
+  }
 }
 
 export { auth };
