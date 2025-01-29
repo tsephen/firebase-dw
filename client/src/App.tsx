@@ -8,6 +8,9 @@ import Landing from "@/pages/landing";
 import Welcome from "@/pages/welcome";
 import Admin from "@/pages/admin";
 
+// Initialize Firebase before rendering the app
+import "./lib/firebase";
+
 function Router() {
   return (
     <Switch>
