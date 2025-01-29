@@ -9,6 +9,8 @@ import Landing from "@/pages/landing";
 import Welcome from "@/pages/welcome";
 import Admin from "@/pages/admin";
 import Profile from "@/pages/profile";
+import PrivacyPolicy from "@/pages/privacy-policy";
+import DataDeletion from "@/pages/data-deletion";
 import { useAuth } from "@/lib/auth";
 import { VerifyEmail } from "@/components/auth/verify-email";
 
@@ -17,6 +19,14 @@ import "./lib/firebase";
 
 function Router() {
   const { user, loading } = useAuth();
+
+  // These routes are always accessible
+  if (window.location.pathname === "/privacy-policy") {
+    return <PrivacyPolicy />;
+  }
+  if (window.location.pathname === "/data-deletion") {
+    return <DataDeletion />;
+  }
 
   if (loading) {
     return null;
@@ -40,6 +50,8 @@ function Router() {
       <Route path="/welcome" component={Welcome} />
       <Route path="/admin" component={Admin} />
       <Route path="/profile" component={Profile} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
+      <Route path="/data-deletion" component={DataDeletion} />
       <Route component={NotFound} />
     </Switch>
   );
