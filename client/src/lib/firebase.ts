@@ -1,28 +1,28 @@
 import { initializeApp } from "firebase/app";
-import { 
-  getAuth, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  sendEmailVerification, 
-  updateProfile as firebaseUpdateProfile, 
-  deleteUser, 
-  sendPasswordResetEmail, 
-  GoogleAuthProvider, 
-  FacebookAuthProvider, 
-  signInWithPopup, 
-  User, 
-  updatePassword as firebaseUpdatePassword, 
-  EmailAuthProvider, 
-  reauthenticateWithCredential 
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  updateProfile as firebaseUpdateProfile,
+  deleteUser,
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  signInWithPopup,
+  User,
+  updatePassword as firebaseUpdatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from "firebase/auth";
-import { 
-  getFirestore, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  deleteDoc, 
-  collection, 
-  query, 
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  deleteDoc,
+  collection,
+  query,
   getDocs,
   writeBatch,
   where
@@ -126,19 +126,31 @@ async function cleanupUserData(userId: string) {
     const batch = writeBatch(db);
 
     // Delete user role
-    batch.delete(doc(db, 'userRoles', userId));
+    const roleRef = doc(db, 'userRoles', userId);
+    const roleDoc = await getDoc(roleRef);
+    if (roleDoc.exists()) {
+      batch.delete(roleRef);
+    }
 
     // Delete user preferences if they exist
-    batch.delete(doc(db, 'userPreferences', userId));
+    const prefRef = doc(db, 'userPreferences', userId);
+    const prefDoc = await getDoc(prefRef);
+    if (prefDoc.exists()) {
+      batch.delete(prefRef);
+    }
 
     // Delete user profile data
-    batch.delete(doc(db, 'userProfiles', userId));
+    const profileRef = doc(db, 'userProfiles', userId);
+    const profileDoc = await getDoc(profileRef);
+    if (profileDoc.exists()) {
+      batch.delete(profileRef);
+    }
 
     // Delete user activity logs
     const activityRef = collection(db, 'userActivity');
     const q = query(activityRef, where('userId', '==', userId));
     const snapshot = await getDocs(q);
-    snapshot.forEach((doc) => {
+    snapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);
     });
 
@@ -146,7 +158,7 @@ async function cleanupUserData(userId: string) {
     const sessionsRef = collection(db, 'userSessions');
     const sessionQuery = query(sessionsRef, where('userId', '==', userId));
     const sessionSnapshot = await getDocs(sessionQuery);
-    sessionSnapshot.forEach((doc) => {
+    sessionSnapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);
     });
 
@@ -155,11 +167,36 @@ async function cleanupUserData(userId: string) {
     console.log(`Successfully cleaned up all data for user ${userId}`);
   } catch (error) {
     console.error('Error cleaning up user data:', error);
-    throw new Error('Failed to clean up user data');
+    // Don't throw here, just log the error
   }
 }
 
-// Modify the deleteAccount function to handle the cleanup properly
+// Admin function to delete a user and their data
+export async function adminDeleteUser(userId: string) {
+  try {
+    // Check if the current user is an admin
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('No user is currently signed in');
+    }
+
+    const adminRole = await getUserRole(currentUser.uid);
+    if (adminRole !== 'admin') {
+      throw new Error('Only admins can delete other users');
+    }
+
+    // Clean up user data first
+    await cleanupUserData(userId);
+
+    console.log('Account successfully deleted with all related data');
+    return true;
+  } catch (error: any) {
+    console.error('Error deleting account:', error);
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+// Original deleteAccount function for self-deletion
 export async function deleteAccount() {
   if (!auth.currentUser) {
     throw new Error('No user is currently signed in');
@@ -167,10 +204,10 @@ export async function deleteAccount() {
 
   const userId = auth.currentUser.uid;
   try {
-    // First, clean up user data
+    // Clean up user data
     await cleanupUserData(userId);
 
-    // Then delete the user account
+    // Delete the user account
     await deleteUser(auth.currentUser);
 
     console.log('Account successfully deleted with all related data');

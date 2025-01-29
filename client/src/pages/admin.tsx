@@ -16,7 +16,7 @@ import {
   listUsersWithRoles,
   setUserRole,
   type UserRole,
-  deleteAccount
+  adminDeleteUser
 } from "@/lib/firebase";
 import {
   AlertDialog,
@@ -102,7 +102,7 @@ export default function Admin() {
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      await deleteAccount(userId); // Assuming deleteAccount now accepts userId
+      await adminDeleteUser(userId);
 
       // Update local state to remove the deleted user
       setUsers(prevUsers => prevUsers.filter(u => u.userId !== userId));
