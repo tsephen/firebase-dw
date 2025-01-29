@@ -1,9 +1,32 @@
 import { useRequireAuth } from "@/lib/auth";
 import { VerifyEmail } from "@/components/auth/verify-email";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { deleteAccount } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 export default function Welcome() {
   const { user, loading, verified } = useRequireAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount();
+      toast({
+        title: "Account deleted",
+        description: "Your account has been successfully deleted",
+      });
+      setLocation("/");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -28,6 +51,15 @@ export default function Welcome() {
       <p className="mt-4 text-muted-foreground">
         You've successfully logged in and verified your email.
       </p>
+      <div className="mt-8">
+        <Button 
+          variant="destructive" 
+          onClick={handleDeleteAccount}
+          className="w-full max-w-xs"
+        >
+          Delete Account
+        </Button>
+      </div>
     </div>
   );
 }

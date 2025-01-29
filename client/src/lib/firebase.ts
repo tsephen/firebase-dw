@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, deleteUser } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -40,5 +40,11 @@ export async function signOut() {
 export async function sendVerificationEmail() {
   if (auth.currentUser) {
     return sendEmailVerification(auth.currentUser);
+  }
+}
+
+export async function deleteAccount() {
+  if (auth.currentUser) {
+    await deleteUser(auth.currentUser);
   }
 }
