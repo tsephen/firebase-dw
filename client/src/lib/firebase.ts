@@ -14,6 +14,12 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+console.log("Initializing Firebase with config:", {
+  projectId: firebaseConfig.projectId,
+  authDomain: firebaseConfig.authDomain,
+  // Don't log sensitive values like apiKey
+});
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -61,7 +67,9 @@ function getErrorMessage(code: string): string {
 
 export async function signUpWithGoogle() {
   try {
+    console.log("Starting Google sign-in process...");
     const result = await signInWithPopup(auth, googleProvider);
+    console.log("Google sign-in successful, processing user data...");
     const user = result.user;
 
     if (!user) {
@@ -77,9 +85,14 @@ export async function signUpWithGoogle() {
       photoURL: JSON.stringify({ role: 'user' }) // We don't have age from Google
     });
 
+    console.log("User profile updated successfully");
     return user;
   } catch (error: any) {
-    console.error('Google sign-in error:', error);
+    console.error('Google sign-in error:', {
+      code: error.code,
+      message: error.message,
+      fullError: error
+    });
     throw new Error(getErrorMessage(error.code));
   }
 }

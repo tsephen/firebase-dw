@@ -40,26 +40,34 @@ export function LoginForm() {
         description: "You have been logged in",
       });
     } catch (error: any) {
+      console.error("Email/Password login error:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to log in. Please try again.",
       });
     }
   }
 
   const handleGoogleSignIn = async () => {
     try {
-      await signUpWithGoogle();
+      console.log("Starting Google sign-in process...");
+      const result = await signUpWithGoogle();
+      console.log("Google sign-in successful:", result);
       toast({
         title: "Success",
         description: "You have been logged in with Google",
       });
     } catch (error: any) {
+      console.error("Google sign-in error details:", {
+        code: error.code,
+        message: error.message,
+        fullError: error
+      });
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message,
+        title: "Google Sign-In Error",
+        description: error.message || "Failed to sign in with Google. Please try again.",
       });
     }
   };
@@ -98,7 +106,6 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
-            {/* Move ResetPasswordDialog outside of form fields */}
             <div className="text-sm">
               <ResetPasswordDialog />
             </div>
