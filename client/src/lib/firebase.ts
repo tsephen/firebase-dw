@@ -202,33 +202,27 @@ export async function adminDeleteUser(userId: string) {
       throw new Error('Only admins can delete other users');
     }
 
-    // First delete the user's role document from Firestore
+    // Delete only the userRole document from Firestore
     console.log(`Attempting to delete role document for user ${userId}`);
     const roleRef = doc(db, 'userRoles', userId);
 
     try {
       await deleteDoc(roleRef);
       console.log(`Successfully deleted role document for user ${userId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting role document:', error);
+      if (error.code === 'permission-denied') {
+        throw new Error('Permission denied: Unable to delete user role. Please check your Firebase rules.');
+      }
       throw new Error('Failed to delete user role from Firestore');
     }
 
-    // Clean up other user data if it exists
-    try {
-      await cleanupUserData(userId);
-      console.log('Successfully cleaned up additional user data');
-    } catch (error) {
-      console.error('Error during cleanup:', error);
-      // Continue with deletion even if cleanup fails
-    }
-
-    // Note: You need to use the Admin SDK to delete users from Authentication
-    // For now, we'll just delete their Firestore data
-    console.log('Successfully deleted user data from Firestore');
     return true;
   } catch (error: any) {
     console.error('Error in admin delete user:', error);
+    if (error.code === 'auth/user-token-expired') {
+      throw new Error('Your session has expired. Please sign in again.');
+    }
     throw new Error(getErrorMessage(error));
   }
 }
