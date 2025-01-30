@@ -11,37 +11,31 @@ const initializeFirebaseAdmin = () => {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY?.trim();
 
     if (!projectId || !clientEmail || !privateKey) {
-      console.error('Missing required Firebase Admin configuration:', {
-        hasProjectId: !!projectId,
-        hasClientEmail: !!clientEmail,
-        hasPrivateKey: !!privateKey,
-      });
+      console.error('Missing required Firebase Admin configuration');
       return false;
     }
 
     // Initialize the admin SDK with service account
     if (!admin.apps?.length) {
+      // Create service account credential
       const serviceAccount = {
         projectId,
         clientEmail,
         privateKey: privateKey.replace(/\\n/g, '\n'),
       };
 
+      // Initialize with admin privileges
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         projectId: projectId
       });
+
+      console.log('Firebase Admin SDK initialized successfully');
     }
 
-    console.log('Firebase Admin initialized successfully');
     return true;
   } catch (error) {
     console.error('Error initializing Firebase Admin:', error);
-    if (error instanceof Error) {
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
     return false;
   }
 };
@@ -70,34 +64,31 @@ export function registerRoutes(app: Express): Server {
       }
 
       try {
-        // Verify admin's token
+        // Verify the requesting user is an admin
         const idToken = authHeader.split('Bearer ')[1];
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const adminUid = decodedToken.uid;
 
-        // Verify admin role
+        // Check admin role in Firestore
         const adminRoleDoc = await admin.firestore().collection('userRoles').doc(adminUid).get();
         if (!adminRoleDoc.exists || adminRoleDoc.data()?.role !== 'admin') {
           return res.status(403).json({ error: 'Not authorized to delete users' });
         }
 
-        // Delete user directly using Admin SDK
+        // Delete the user using Admin SDK
         await admin.auth().deleteUser(userId);
-        console.log('User deleted successfully from Firebase Auth:', userId);
+        console.log('Successfully deleted user:', userId);
 
         res.status(200).json({ message: 'User deleted successfully' });
       } catch (authError: any) {
-        console.error('Error in admin delete request:', authError);
+        console.error('Error in admin delete operation:', authError);
         if (authError.code === 'auth/id-token-expired') {
           return res.status(401).json({ error: 'Authentication token expired' });
-        }
-        if (authError.code === 'auth/id-token-revoked') {
-          return res.status(401).json({ error: 'Authentication token revoked' });
         }
         throw authError;
       }
     } catch (error: any) {
-      console.error('Error in admin delete request:', error);
+      console.error('Error in delete user request:', error);
       res.status(500).json({ 
         error: error.message || 'Failed to delete user',
         code: error.code 
