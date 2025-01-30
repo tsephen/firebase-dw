@@ -72,6 +72,36 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Admin endpoint to disable user
+  app.post('/api/admin/disableUser', async (req, res) => {
+    try {
+      if (!isAdminInitialized) {
+        console.error('Firebase Admin not initialized');
+        return res.status(500).json({ error: 'Firebase Admin not initialized' });
+      }
+
+      const { userId } = req.query;
+
+      if (!userId || typeof userId !== 'string') {
+        return res.status(400).json({ error: 'Invalid userId provided' });
+      }
+
+      // Disable user account using Admin SDK
+      await admin.auth().updateUser(userId, {
+        disabled: true
+      });
+      console.log('Successfully disabled user:', userId);
+
+      res.status(200).json({ message: 'User disabled successfully' });
+    } catch (error: any) {
+      console.error('Error in disable user request:', error);
+      res.status(500).json({ 
+        error: error.message || 'Failed to disable user',
+        code: error.code 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

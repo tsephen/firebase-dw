@@ -13,7 +13,8 @@ import {
   User,
   updatePassword as firebaseUpdatePassword,
   EmailAuthProvider,
-  reauthenticateWithCredential
+  reauthenticateWithCredential,
+  signOut
 } from "firebase/auth";
 import {
   getFirestore,
@@ -359,3 +360,47 @@ export async function updatePassword(user: User, currentPassword: string, newPas
 }
 
 export { auth, db };
+
+// Enhanced adminDisableUser function for client-side
+export async function adminDisableUser(userId: string) {
+  try {
+    // Check if the current user is an admin
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('No user is currently signed in');
+    }
+
+    const adminRole = await getUserRole(currentUser.uid);
+    if (adminRole !== 'admin') {
+      throw new Error('Only admins can disable other users');
+    }
+
+    // First update user's role to disabled
+    await setUserRole(userId, 'disabled');
+
+    // Then disable the user's authentication account using Admin SDK endpoint
+    const idToken = await currentUser.getIdToken();
+    const response = await fetch(`/api/admin/disableUser?userId=${userId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${idToken}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to disable user');
+    }
+
+    // If the disabled user is currently signed in, sign them out
+    if (auth.currentUser?.uid === userId) {
+      await signOut();
+    }
+
+    console.log('User successfully disabled');
+    return true;
+  } catch (error: any) {
+    console.error('Error in admin disable user:', error);
+    throw new Error(error.message || 'Failed to disable user');
+  }
+}

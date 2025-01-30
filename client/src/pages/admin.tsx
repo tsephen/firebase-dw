@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { listUsersWithRoles, setUserRole, type UserRole, adminDeleteUser } from "@/lib/firebase";
+import { listUsersWithRoles, setUserRole, type UserRole, adminDisableUser } from "@/lib/firebase";
 import { Shield, ShieldOff, Ban } from "lucide-react";
 import {
   AlertDialog,
@@ -88,8 +88,7 @@ export default function Admin() {
 
   const handleDisableUser = async (userId: string) => {
     try {
-      // First remove the user's role
-      await setUserRole(userId, 'disabled');
+      await adminDisableUser(userId);
 
       // Update local state to show user as disabled
       setUsers(prevUsers => prevUsers.map(u =>
