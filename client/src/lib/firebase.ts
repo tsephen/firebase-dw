@@ -152,58 +152,33 @@ export async function adminDeleteUser(userId: string) {
       await deleteDoc(roleRef);
       console.log(`Successfully deleted role document for user ${userId}`);
     } catch (error: any) {
-      console.error('Error deleting user:', error);
-      if (error.code === 'permission-denied') {
-        throw new Error('Permission denied: Unable to delete user. Please check your Firebase rules.');
-      }
-      throw error;
-    }
-
-    return true;
-  } catch (error: any) {
-    console.error('Error in admin delete user:', error);
-    throw new Error(getErrorMessage(error));
-  }
-}
-
-// Admin function to delete a user and their data
-export async function adminDeleteUserOld(userId: string) {
-  try {
-    // Check if the current user is an admin
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      throw new Error('No user is currently signed in');
-    }
-
-    const adminRole = await getUserRole(currentUser.uid);
-    if (adminRole !== 'admin') {
-      throw new Error('Only admins can delete other users');
-    }
-
-    // Delete only the userRole document from Firestore
-    console.log(`Attempting to delete role document for user ${userId}`);
-    const roleRef = doc(db, 'userRoles', userId);
-
-    try {
-      await deleteDoc(roleRef);
-      console.log(`Successfully deleted role document for user ${userId}`);
-    } catch (error: any) {
       console.error('Error deleting role document:', error);
       if (error.code === 'permission-denied') {
         throw new Error('Permission denied: Unable to delete user role. Please check your Firebase rules.');
       }
-      throw new Error('Failed to delete user role from Firestore');
+      throw error;
+    }
+
+    // Delete the user from Firebase Authentication
+    // We'll use a custom endpoint that uses the Admin SDK to delete the user
+    const response = await fetch(`/api/admin/deleteUser?userId=${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${await currentUser.getIdToken()}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete user from Authentication: ${response.statusText}`);
     }
 
     return true;
   } catch (error: any) {
     console.error('Error in admin delete user:', error);
-    if (error.code === 'auth/user-token-expired') {
-      throw new Error('Your session has expired. Please sign in again.');
-    }
     throw new Error(getErrorMessage(error));
   }
 }
+
 
 // Updated deleteAccount function for self-deletion
 export async function deleteAccount() {
