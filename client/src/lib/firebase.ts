@@ -144,7 +144,7 @@ export async function adminDeleteUser(userId: string) {
       throw new Error('Only admins can delete other users');
     }
 
-    // Delete user's role document from Firestore
+    // Delete user's role document from Firestore first
     console.log(`Attempting to delete role document for user ${userId}`);
     const roleRef = doc(db, 'userRoles', userId);
 
@@ -159,9 +159,21 @@ export async function adminDeleteUser(userId: string) {
       throw error;
     }
 
-    // Delete the user from Firebase Authentication
-    await auth.currentUser.delete();
-    console.log('User successfully deleted from Authentication');
+    // Delete the user from Firebase Authentication using the Admin SDK endpoint
+    const idToken = await currentUser.getIdToken();
+    const response = await fetch(`/api/admin/deleteUser?userId=${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${idToken}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to delete user');
+    }
+
+    console.log('User successfully deleted from both Firestore and Authentication');
     return true;
   } catch (error: any) {
     console.error('Error in admin delete user:', error);
