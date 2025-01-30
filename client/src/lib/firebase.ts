@@ -260,6 +260,19 @@ export async function updateProfile(user: User, updates: { displayName?: string 
   }
 }
 
+// Helper function to check if role exists
+async function checkAndSetDefaultRole(userId: string) {
+  try {
+    const roleDoc = await getDoc(doc(db, 'userRoles', userId));
+    if (!roleDoc.exists()) {
+      // Only set role if it doesn't exist
+      await setUserRole(userId, 'user');
+    }
+  } catch (error) {
+    console.error('Error checking/setting role:', error);
+  }
+}
+
 export async function signUpWithGoogle() {
   try {
     const result = await signInWithPopup(auth, googleProvider);
@@ -271,8 +284,8 @@ export async function signUpWithGoogle() {
     const user = result.user;
     const name = user.displayName || user.email?.split('@')[0] || 'User';
 
-    // Set default role for new users
-    await setUserRole(user.uid, 'user');
+    // Only set role for new users
+    await checkAndSetDefaultRole(user.uid);
 
     await firebaseUpdateProfile(user, {
       displayName: name
@@ -295,8 +308,8 @@ export async function signUpWithFacebook() {
     const user = result.user;
     const name = user.displayName || user.email?.split('@')[0] || 'User';
 
-    // Set default role for new users
-    await setUserRole(user.uid, 'user');
+    // Only set role for new users
+    await checkAndSetDefaultRole(user.uid);
 
     await firebaseUpdateProfile(user, {
       displayName: name
