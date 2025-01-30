@@ -66,29 +66,42 @@ export function registerRoutes(app: Express): Server {
 
       const idToken = authHeader.split('Bearer ')[1];
 
-      // Verify the admin's token
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const adminUid = decodedToken.uid;
+      try {
+        // Verify the admin's token
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const adminUid = decodedToken.uid;
 
-      // Get admin's role from Firestore
-      const adminRoleDoc = await admin.firestore().collection('userRoles').doc(adminUid).get();
-      if (!adminRoleDoc.exists || adminRoleDoc.data()?.role !== 'admin') {
-        return res.status(403).json({ error: 'Not authorized to delete users' });
+        // Get admin's role from Firestore
+        const adminRoleDoc = await admin.firestore().collection('userRoles').doc(adminUid).get();
+        if (!adminRoleDoc.exists || adminRoleDoc.data()?.role !== 'admin') {
+          return res.status(403).json({ error: 'Not authorized to delete users' });
+        }
+
+        if (!userId || typeof userId !== 'string') {
+          return res.status(400).json({ error: 'Invalid userId provided' });
+        }
+
+        // Delete user using Admin SDK
+        await admin.auth().deleteUser(userId);
+        console.log('User deleted successfully from Firebase Auth:', userId);
+
+        res.status(200).json({ message: 'User deleted successfully' });
+      } catch (authError: any) {
+        console.error('Error in admin delete request:', authError);
+        // Check if the error is related to token verification
+        if (authError.code === 'auth/id-token-expired') {
+          return res.status(401).json({ error: 'Authentication token expired' });
+        }
+        if (authError.code === 'auth/id-token-revoked') {
+          return res.status(401).json({ error: 'Authentication token revoked' });
+        }
+        throw authError;
       }
-
-      if (!userId || typeof userId !== 'string') {
-        return res.status(400).json({ error: 'Invalid userId provided' });
-      }
-
-      // Delete user using Admin SDK
-      await admin.auth().deleteUser(userId);
-      console.log('User deleted successfully from Firebase Auth:', userId);
-
-      res.status(200).json({ message: 'User deleted successfully' });
     } catch (error: any) {
       console.error('Error in admin delete request:', error);
       res.status(500).json({ 
-        error: error.message || 'Failed to delete user' 
+        error: error.message || 'Failed to delete user',
+        code: error.code 
       });
     }
   });
