@@ -45,14 +45,14 @@ export function useRequireAuth(redirectTo: string = "/") {
 }
 
 export function useRequireAdmin(redirectTo: string = "/") {
-  const { user, loading, role } = useRequireAuth(redirectTo);
+  const { user, loading, role } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!loading) {
       if (!user || role !== 'admin') {
         window.location.href = redirectTo;
-      } else if (role === 'admin') {
+      } else {
         setIsAdmin(true);
       }
     }

@@ -18,7 +18,7 @@ import { VerifyEmail } from "@/components/auth/verify-email";
 import "./lib/firebase";
 
 function Router() {
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
 
   // These routes are always accessible
   if (window.location.pathname === "/privacy-policy") {
@@ -53,7 +53,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Welcome} />
       <Route path="/welcome" component={Welcome} />
-      <Route path="/admin" component={Admin} />
+      {role === 'admin' && <Route path="/admin" component={Admin} />}
       <Route path="/profile" component={Profile} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/data-deletion" component={DataDeletion} />
