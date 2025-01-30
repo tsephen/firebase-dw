@@ -131,6 +131,7 @@ export default function Admin() {
           <TableHeader>
             <TableRow>
               <TableHead>User</TableHead>
+              <TableHead>User ID</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Last Updated</TableHead>
@@ -141,6 +142,9 @@ export default function Admin() {
             {users.map((user) => (
               <TableRow key={user.userId}>
                 <TableCell>{user.displayName || "N/A"}</TableCell>
+                <TableCell className="font-mono text-sm text-muted-foreground">
+                  {user.userId}
+                </TableCell>
                 <TableCell>{user.email || "N/A"}</TableCell>
                 <TableCell className="capitalize">{user.role}</TableCell>
                 <TableCell>
