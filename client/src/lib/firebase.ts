@@ -67,7 +67,7 @@ export type SignUpData = {
   age: number;
 };
 
-export type UserRole = 'user' | 'admin';
+export type UserRole = 'user' | 'admin' | 'disabled';
 
 export interface UserRoleData {
   role: UserRole;

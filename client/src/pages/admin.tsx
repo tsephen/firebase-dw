@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { listUsersWithRoles, setUserRole, type UserRole, adminDeleteUser } from "@/lib/firebase";
-import { Shield, ShieldOff, Trash2 } from "lucide-react";
+import { Shield, ShieldOff, Ban } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,22 +86,27 @@ export default function Admin() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDisableUser = async (userId: string) => {
     try {
-      await adminDeleteUser(userId);
+      // First remove the user's role
+      await setUserRole(userId, 'disabled');
 
-      // Update local state to remove the deleted user
-      setUsers(prevUsers => prevUsers.filter(u => u.userId !== userId));
+      // Update local state to show user as disabled
+      setUsers(prevUsers => prevUsers.map(u =>
+        u.userId === userId
+          ? { ...u, role: 'disabled', updatedAt: new Date().toISOString() }
+          : u
+      ));
 
       toast({
         title: "Success",
-        description: "User deleted successfully"
+        description: "User has been disabled"
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to delete user"
+        description: error.message || "Failed to disable user"
       });
     }
   };
@@ -152,28 +157,30 @@ export default function Admin() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        handleRoleChange(
-                          user.userId,
-                          user.role === "admin" ? "user" : "admin"
-                        )
-                      }
-                    >
-                      {user.role === "admin" ? (
-                        <>
-                          <ShieldOff className="mr-2 h-4 w-4" />
-                          Remove Admin
-                        </>
-                      ) : (
-                        <>
-                          <Shield className="mr-2 h-4 w-4" />
-                          Make Admin
-                        </>
-                      )}
-                    </Button>
+                    {user.role !== 'disabled' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          handleRoleChange(
+                            user.userId,
+                            user.role === "admin" ? "user" : "admin"
+                          )
+                        }
+                      >
+                        {user.role === "admin" ? (
+                          <>
+                            <ShieldOff className="mr-2 h-4 w-4" />
+                            Remove Admin
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="mr-2 h-4 w-4" />
+                            Make Admin
+                          </>
+                        )}
+                      </Button>
+                    )}
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -181,26 +188,26 @@ export default function Admin() {
                           variant="destructive"
                           size="sm"
                           className="gap-2"
+                          disabled={user.role === 'disabled'}
                         >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
+                          <Ban className="h-4 w-4" />
+                          Disable User
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete User Account</AlertDialogTitle>
+                          <AlertDialogTitle>Disable User Account</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the
-                            user account and all associated data.
+                            This action will disable the user account. The user will no longer be able to access the application.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => handleDeleteUser(user.userId)}
+                            onClick={() => handleDisableUser(user.userId)}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
-                            Delete
+                            Disable
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
