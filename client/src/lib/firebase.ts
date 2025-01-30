@@ -104,25 +104,90 @@ export async function getUserRole(userId: string): Promise<UserRole> {
   }
 }
 
-export async function listUsersWithRoles(): Promise<{ userId: string; role: UserRole; updatedAt: string; }[]> {
+// Updated listUsersWithRoles function to include user details
+export async function listUsersWithRoles(): Promise<{ userId: string; role: UserRole; updatedAt: string; email?: string | null; displayName?: string | null; }[]> {
   try {
+    // Get all role documents
     const rolesRef = collection(db, 'userRoles');
     const rolesSnapshot = await getDocs(rolesRef);
 
-    return rolesSnapshot.docs.map(doc => ({
-      userId: doc.id,
-      role: doc.data().role as UserRole,
-      updatedAt: doc.data().updatedAt
-    }));
+    // Get user details from Firebase Auth
+    const users = await Promise.all(
+      rolesSnapshot.docs.map(async (doc) => {
+        const roleData = doc.data();
+        try {
+          // Get user details from Auth
+          const userRecord = await auth.getUser(doc.id);
+          return {
+            userId: doc.id,
+            role: roleData.role as UserRole,
+            updatedAt: roleData.updatedAt,
+            email: userRecord.email,
+            displayName: userRecord.displayName
+          };
+        } catch (error) {
+          // If user not found in Auth, return basic info
+          return {
+            userId: doc.id,
+            role: roleData.role as UserRole,
+            updatedAt: roleData.updatedAt,
+            email: null,
+            displayName: null
+          };
+        }
+      })
+    );
+
+    return users;
   } catch (error: any) {
     console.error('Error listing users with roles:', error);
     throw new Error('Failed to list users with roles');
   }
 }
 
+// Enhanced adminDeleteUser function
+export async function adminDeleteUser(userId: string) {
+  try {
+    // Check if the current user is an admin
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('No user is currently signed in');
+    }
+
+    const adminRole = await getUserRole(currentUser.uid);
+    if (adminRole !== 'admin') {
+      throw new Error('Only admins can delete other users');
+    }
+
+    // Delete user's role document from Firestore
+    console.log(`Attempting to delete role document for user ${userId}`);
+    const roleRef = doc(db, 'userRoles', userId);
+
+    try {
+      await deleteDoc(roleRef);
+      console.log(`Successfully deleted role document for user ${userId}`);
+
+      // Delete the user's authentication account
+      await auth.deleteUser(userId);
+      console.log(`Successfully deleted user authentication for ${userId}`);
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      if (error.code === 'permission-denied') {
+        throw new Error('Permission denied: Unable to delete user. Please check your Firebase rules.');
+      }
+      throw error;
+    }
+
+    return true;
+  } catch (error: any) {
+    console.error('Error in admin delete user:', error);
+    throw new Error(getErrorMessage(error));
+  }
+}
+
 
 // Admin function to delete a user and their data
-export async function adminDeleteUser(userId: string) {
+export async function adminDeleteUserOld(userId: string) {
   try {
     // Check if the current user is an admin
     const currentUser = auth.currentUser;

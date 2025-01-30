@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2 } from "lucide-react";
+import { Trash2, Shield, ShieldOff } from "lucide-react";
 
 type UserWithRole = {
   userId: string;
@@ -49,22 +49,14 @@ export default function Admin() {
     async function loadUsers() {
       try {
         const usersWithRoles = await listUsersWithRoles();
-
-        // Enhance user data with Firebase Auth user info
-        const enhancedUsers = usersWithRoles.map(userRole => ({
-          ...userRole,
-          email: auth.currentUser?.email,
-          displayName: auth.currentUser?.displayName
-        }));
-
-        setUsers(enhancedUsers);
+        setUsers(usersWithRoles);
+        setLoadingUsers(false);
       } catch (error: any) {
         toast({
           variant: "destructive",
           title: "Error",
           description: error.message || "Failed to load users"
         });
-      } finally {
         setLoadingUsers(false);
       }
     }
@@ -89,7 +81,7 @@ export default function Admin() {
 
       toast({
         title: "Success",
-        description: "User role updated successfully"
+        description: `User role updated to ${newRole}`
       });
     } catch (error: any) {
       toast({
@@ -131,12 +123,16 @@ export default function Admin() {
 
   return (
     <div className="container py-8">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-      <p className="mt-4 text-muted-foreground mb-6">
-        Welcome to the admin area, {user?.displayName}
-      </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <p className="mt-2 text-muted-foreground">
+            Manage users and their roles
+          </p>
+        </div>
+      </div>
 
-      <div className="rounded-md border">
+      <div className="mt-8 rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -144,7 +140,7 @@ export default function Admin() {
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Last Updated</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -152,12 +148,12 @@ export default function Admin() {
               <TableRow key={user.userId}>
                 <TableCell>{user.displayName || "N/A"}</TableCell>
                 <TableCell>{user.email || "N/A"}</TableCell>
-                <TableCell>{user.role}</TableCell>
+                <TableCell className="capitalize">{user.role}</TableCell>
                 <TableCell>
                   {new Date(user.updatedAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-end gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -168,7 +164,17 @@ export default function Admin() {
                         )
                       }
                     >
-                      {user.role === "admin" ? "Remove Admin" : "Make Admin"}
+                      {user.role === "admin" ? (
+                        <>
+                          <ShieldOff className="mr-2 h-4 w-4" />
+                          Remove Admin
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="mr-2 h-4 w-4" />
+                          Make Admin
+                        </>
+                      )}
                     </Button>
 
                     <AlertDialog>
