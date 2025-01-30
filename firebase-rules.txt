@@ -5,15 +5,27 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
+
     function isAdmin() {
       return isSignedIn() && 
+        exists(/databases/$(database)/documents/userRoles/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/userRoles/$(request.auth.uid)).data.role == 'admin';
     }
+
     // User roles collection
     match /userRoles/{userId} {
+      // Allow all signed-in users to read the entire collection
+      // This is needed for the admin page to list all users
       allow read: if isSignedIn();
+
+      // Allow users to create/update their own role, or admins to do it for anyone
       allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+
+      // Allow users to delete their own role, or admins to delete anyone's
       allow delete: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+
+      // Allow listing all documents in the collection if user is admin
+      allow list: if isAdmin();
     }
   }
 }
