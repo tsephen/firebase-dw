@@ -19,16 +19,16 @@ const initializeFirebaseAdmin = () => {
       return false;
     }
 
-    console.log('Initializing Firebase Admin with project:', projectId);
-
-    // Initialize the admin SDK with custom token options
+    // Initialize the admin SDK with service account
     if (!admin.apps?.length) {
+      const serviceAccount = {
+        projectId,
+        clientEmail,
+        privateKey: privateKey.replace(/\\n/g, '\n'),
+      };
+
       admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey: privateKey.replace(/\\n/g, '\n'),
-        }),
+        credential: admin.credential.cert(serviceAccount),
         projectId: projectId
       });
     }
@@ -65,28 +65,23 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ error: 'No token provided' });
       }
 
-      const idToken = authHeader.split('Bearer ')[1];
+      if (!userId || typeof userId !== 'string') {
+        return res.status(400).json({ error: 'Invalid userId provided' });
+      }
 
       try {
-        // Verify the admin's token and get user data
+        // Verify admin's token
+        const idToken = authHeader.split('Bearer ')[1];
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const adminUid = decodedToken.uid;
 
-        // Get admin's role from Firestore
+        // Verify admin role
         const adminRoleDoc = await admin.firestore().collection('userRoles').doc(adminUid).get();
         if (!adminRoleDoc.exists || adminRoleDoc.data()?.role !== 'admin') {
           return res.status(403).json({ error: 'Not authorized to delete users' });
         }
 
-        if (!userId || typeof userId !== 'string') {
-          return res.status(400).json({ error: 'Invalid userId provided' });
-        }
-
-        // Get a custom token for the user being deleted
-        const customToken = await admin.auth().createCustomToken(userId);
-        console.log('Created custom token for user deletion');
-
-        // Delete user using Admin SDK
+        // Delete user directly using Admin SDK
         await admin.auth().deleteUser(userId);
         console.log('User deleted successfully from Firebase Auth:', userId);
 
