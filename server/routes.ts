@@ -1,6 +1,6 @@
-import type { Express } from "express";
 import { createServer, type Server } from "http";
-import * as admin from "firebase-admin";
+import type { Express } from "express";
+import admin from 'firebase-admin';
 
 // Initialize Firebase Admin
 const initializeFirebaseAdmin = () => {
@@ -21,33 +21,21 @@ const initializeFirebaseAdmin = () => {
 
     console.log('Initializing Firebase Admin with project:', projectId);
 
-    // Ensure the private key is properly formatted
-    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
-
-    const credential = {
-      projectId,
-      clientEmail,
-      privateKey: formattedPrivateKey,
-    };
-
-    // Log credential structure (without sensitive values)
-    console.log('Credential structure:', {
-      hasProjectId: !!credential.projectId,
-      hasClientEmail: !!credential.clientEmail,
-      hasPrivateKey: !!credential.privateKey,
-      privateKeyLength: credential.privateKey.length,
-    });
-
-    admin.initializeApp({
-      credential: admin.credential.cert(credential),
-      storageBucket: `${projectId}.appspot.com`,
-    });
+    // Initialize the admin SDK
+    if (!admin.apps?.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey: privateKey.replace(/\\n/g, '\n'),
+        }),
+      });
+    }
 
     console.log('Firebase Admin initialized successfully');
     return true;
   } catch (error) {
     console.error('Error initializing Firebase Admin:', error);
-    // Log detailed error information
     if (error instanceof Error) {
       console.error('Error name:', error.name);
       console.error('Error message:', error.message);
