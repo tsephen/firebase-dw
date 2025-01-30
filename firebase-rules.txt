@@ -5,17 +5,15 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
-
     function isAdmin() {
       return isSignedIn() && 
         get(/databases/$(database)/documents/userRoles/$(request.auth.uid)).data.role == 'admin';
     }
-
     // User roles collection
     match /userRoles/{userId} {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow delete: if isSignedIn() && isAdmin();
+      allow delete: if isSignedIn() && (request.auth.uid == userId || isAdmin());
     }
   }
 }
