@@ -160,7 +160,7 @@ export async function adminDeleteUser(userId: string) {
   }
 }
 
-// Original deleteAccount function for self-deletion
+// Updated deleteAccount function for self-deletion
 export async function deleteAccount() {
   if (!auth.currentUser) {
     throw new Error('No user is currently signed in');
@@ -168,9 +168,13 @@ export async function deleteAccount() {
 
   const userId = auth.currentUser.uid;
   try {
-    // Delete the user account
-    await deleteUser(auth.currentUser);
+    // First delete the user's role document from Firestore
+    const roleRef = doc(db, 'userRoles', userId);
+    await deleteDoc(roleRef);
+    console.log('User role document deleted');
 
+    // Then delete the user account from Firebase Auth
+    await deleteUser(auth.currentUser);
     console.log('Account successfully deleted');
   } catch (error: any) {
     console.error('Error deleting account:', error);
