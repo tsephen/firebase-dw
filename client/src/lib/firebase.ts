@@ -104,39 +104,24 @@ export async function getUserRole(userId: string): Promise<UserRole> {
   }
 }
 
-// Updated listUsersWithRoles function to include user details
+// Updated listUsersWithRoles function to work with client-side SDK
 export async function listUsersWithRoles(): Promise<{ userId: string; role: UserRole; updatedAt: string; email?: string | null; displayName?: string | null; }[]> {
   try {
     // Get all role documents
     const rolesRef = collection(db, 'userRoles');
     const rolesSnapshot = await getDocs(rolesRef);
 
-    // Get user details from Firebase Auth
-    const users = await Promise.all(
-      rolesSnapshot.docs.map(async (doc) => {
-        const roleData = doc.data();
-        try {
-          // Get user details from Auth
-          const userRecord = await auth.getUser(doc.id);
-          return {
-            userId: doc.id,
-            role: roleData.role as UserRole,
-            updatedAt: roleData.updatedAt,
-            email: userRecord.email,
-            displayName: userRecord.displayName
-          };
-        } catch (error) {
-          // If user not found in Auth, return basic info
-          return {
-            userId: doc.id,
-            role: roleData.role as UserRole,
-            updatedAt: roleData.updatedAt,
-            email: null,
-            displayName: null
-          };
-        }
-      })
-    );
+    // Map role documents to user data
+    const users = rolesSnapshot.docs.map(doc => {
+      const roleData = doc.data();
+      return {
+        userId: doc.id,
+        role: roleData.role as UserRole,
+        updatedAt: roleData.updatedAt,
+        email: roleData.email,
+        displayName: roleData.displayName
+      };
+    });
 
     return users;
   } catch (error: any) {
@@ -145,7 +130,7 @@ export async function listUsersWithRoles(): Promise<{ userId: string; role: User
   }
 }
 
-// Enhanced adminDeleteUser function
+// Enhanced adminDeleteUser function for client-side
 export async function adminDeleteUser(userId: string) {
   try {
     // Check if the current user is an admin
@@ -166,10 +151,6 @@ export async function adminDeleteUser(userId: string) {
     try {
       await deleteDoc(roleRef);
       console.log(`Successfully deleted role document for user ${userId}`);
-
-      // Delete the user's authentication account
-      await auth.deleteUser(userId);
-      console.log(`Successfully deleted user authentication for ${userId}`);
     } catch (error: any) {
       console.error('Error deleting user:', error);
       if (error.code === 'permission-denied') {
@@ -184,7 +165,6 @@ export async function adminDeleteUser(userId: string) {
     throw new Error(getErrorMessage(error));
   }
 }
-
 
 // Admin function to delete a user and their data
 export async function adminDeleteUserOld(userId: string) {
