@@ -21,7 +21,7 @@ const initializeFirebaseAdmin = () => {
 
     console.log('Initializing Firebase Admin with project:', projectId);
 
-    // Initialize the admin SDK
+    // Initialize the admin SDK with custom token options
     if (!admin.apps?.length) {
       admin.initializeApp({
         credential: admin.credential.cert({
@@ -29,6 +29,7 @@ const initializeFirebaseAdmin = () => {
           clientEmail,
           privateKey: privateKey.replace(/\\n/g, '\n'),
         }),
+        projectId: projectId
       });
     }
 
@@ -67,7 +68,7 @@ export function registerRoutes(app: Express): Server {
       const idToken = authHeader.split('Bearer ')[1];
 
       try {
-        // Verify the admin's token
+        // Verify the admin's token and get user data
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const adminUid = decodedToken.uid;
 
@@ -81,6 +82,10 @@ export function registerRoutes(app: Express): Server {
           return res.status(400).json({ error: 'Invalid userId provided' });
         }
 
+        // Get a custom token for the user being deleted
+        const customToken = await admin.auth().createCustomToken(userId);
+        console.log('Created custom token for user deletion');
+
         // Delete user using Admin SDK
         await admin.auth().deleteUser(userId);
         console.log('User deleted successfully from Firebase Auth:', userId);
@@ -88,7 +93,6 @@ export function registerRoutes(app: Express): Server {
         res.status(200).json({ message: 'User deleted successfully' });
       } catch (authError: any) {
         console.error('Error in admin delete request:', authError);
-        // Check if the error is related to token verification
         if (authError.code === 'auth/id-token-expired') {
           return res.status(401).json({ error: 'Authentication token expired' });
         }
