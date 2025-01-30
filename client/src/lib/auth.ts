@@ -49,12 +49,14 @@ export function useRequireAdmin(redirectTo: string = "/") {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (user && role !== 'admin') {
-      window.location.href = redirectTo;
-    } else if (role === 'admin') {
-      setIsAdmin(true);
+    if (!loading) {
+      if (!user || role !== 'admin') {
+        window.location.href = redirectTo;
+      } else if (role === 'admin') {
+        setIsAdmin(true);
+      }
     }
-  }, [user, role, redirectTo]);
+  }, [user, role, loading, redirectTo]);
 
   return { user, loading, isAdmin };
 }

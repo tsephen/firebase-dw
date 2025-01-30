@@ -11,25 +11,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import {
-  auth,
-  listUsersWithRoles,
-  setUserRole,
-  type UserRole,
-  adminDeleteUser
-} from "@/lib/firebase";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Trash2, Shield, ShieldOff } from "lucide-react";
+import { listUsersWithRoles, setUserRole, type UserRole } from "@/lib/firebase";
+import { Shield, ShieldOff } from "lucide-react";
 
 type UserWithRole = {
   userId: string;
@@ -40,7 +23,7 @@ type UserWithRole = {
 };
 
 export default function Admin() {
-  const { user, loading } = useRequireAdmin();
+  const { loading } = useRequireAdmin();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const { toast } = useToast();
@@ -50,13 +33,13 @@ export default function Admin() {
       try {
         const usersWithRoles = await listUsersWithRoles();
         setUsers(usersWithRoles);
-        setLoadingUsers(false);
       } catch (error: any) {
         toast({
           variant: "destructive",
           title: "Error",
           description: error.message || "Failed to load users"
         });
+      } finally {
         setLoadingUsers(false);
       }
     }
@@ -68,7 +51,7 @@ export default function Admin() {
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     try {
-      await setUserRole(userId, newRole, user?.uid);
+      await setUserRole(userId, newRole);
 
       // Update local state
       setUsers(prevUsers =>
@@ -88,26 +71,6 @@ export default function Admin() {
         variant: "destructive",
         title: "Error",
         description: error.message || "Failed to update user role"
-      });
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      await adminDeleteUser(userId);
-
-      // Update local state to remove the deleted user
-      setUsers(prevUsers => prevUsers.filter(u => u.userId !== userId));
-
-      toast({
-        title: "Success",
-        description: "User account and related data deleted successfully"
-      });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to delete user account"
       });
     }
   };
@@ -176,37 +139,6 @@ export default function Admin() {
                         </>
                       )}
                     </Button>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="gap-2"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete User Account</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the
-                            user account and all associated data.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteUser(user.userId)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
                   </div>
                 </TableCell>
               </TableRow>
