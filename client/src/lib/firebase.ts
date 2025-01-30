@@ -160,25 +160,14 @@ export async function adminDeleteUser(userId: string) {
     }
 
     // Delete the user from Firebase Authentication
-    // We'll use a custom endpoint that uses the Admin SDK to delete the user
-    const response = await fetch(`/api/admin/deleteUser?userId=${userId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${await currentUser.getIdToken()}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to delete user from Authentication: ${response.statusText}`);
-    }
-
+    await auth.currentUser.delete();
+    console.log('User successfully deleted from Authentication');
     return true;
   } catch (error: any) {
     console.error('Error in admin delete user:', error);
-    throw new Error(getErrorMessage(error));
+    throw new Error(error.message || 'Failed to delete user');
   }
 }
-
 
 // Updated deleteAccount function for self-deletion
 export async function deleteAccount() {
