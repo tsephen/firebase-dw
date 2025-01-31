@@ -12,17 +12,20 @@ var isAdminInitialized = admin.apps.length > 0;
 function registerRoutes(app2) {
   app2.delete("/api/admin/deleteUser", async (req, res) => {
     try {
-      if (!isAdminInitialized) {
-        console.error("Firebase Admin not initialized");
-        return res.status(500).json({ error: "Firebase Admin not initialized" });
-      }
       const { userId } = req.query;
       if (!userId || typeof userId !== "string") {
         return res.status(400).json({ error: "Invalid userId provided" });
       }
-      await admin.auth().deleteUser(userId);
-      console.log("Successfully deleted user:", userId);
-      res.status(200).json({ message: "User deleted successfully" });
+      try {
+        await admin.auth().deleteUser(userId);
+        console.log("Deleted from Auth:", userId);
+      } catch (error) {
+        if (error.code !== "auth/user-not-found") {
+          throw error;
+        }
+        console.log("User already removed from Auth:", userId);
+      }
+      res.status(200).json({ success: true, message: "User data cleaned up successfully" });
     } catch (error) {
       console.error("Error in delete user request:", error);
       res.status(500).json({
@@ -46,6 +49,26 @@ function registerRoutes(app2) {
       console.error("Error in disable user request:", error);
       res.status(500).json({
         error: error.message || "Failed to disable user",
+        code: error.code
+      });
+    }
+  });
+  app2.post("/api/admin/enableUser", async (req, res) => {
+    try {
+      const { userId } = req.query;
+      if (!userId || typeof userId !== "string") {
+        return res.status(400).json({ error: "Invalid userId provided" });
+      }
+      await admin.auth().updateUser(userId, { disabled: false });
+      await admin.firestore().collection("userRoles").doc(userId).update({
+        role: "user",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Error enabling user:", error);
+      res.status(500).json({
+        error: error.message || "Failed to enable user",
         code: error.code
       });
     }
@@ -81,7 +104,23 @@ var vite_config_default = defineConfig({
   root: path.resolve(__dirname, "client"),
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
-    emptyOutDir: true
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          firebase: ["firebase/app", "firebase/auth", "firebase/firestore"],
+          vendor: [
+            "@replit/vite-plugin-shadcn-theme-json",
+            "lucide-react",
+            "@radix-ui/react-accordion",
+            "@radix-ui/react-alert-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-dialog"
+          ]
+        }
+      }
+    }
   }
 });
 
@@ -152,7 +191,7 @@ function serveStatic(app2) {
 // server/index.ts
 config();
 var __dirname3 = path3.dirname(fileURLToPath3(import.meta.url));
-var serviceAccountPath = path3.resolve(__dirname3, "../attached_assets/Pasted--type-service-account-project-id-dw-2025-b5dc3-private-key-id-6e2bc9ca1caa27c-1738227018766.txt");
+var serviceAccountPath = path3.resolve(__dirname3, "../attached_assets/service-account.json");
 admin2.initializeApp({
   credential: admin2.credential.cert(serviceAccountPath),
   databaseURL: `https://${process.env.VITE_FIREBASE_PROJECT_ID?.trim()}.firebaseio.com`

@@ -19,5 +19,16 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          firebase: ["firebase/app", "firebase/auth", "firebase/firestore"],
+          vendor: ["@replit/vite-plugin-shadcn-theme-json", "lucide-react",
+                   "@radix-ui/react-accordion", "@radix-ui/react-alert-dialog",
+                   "@radix-ui/react-dropdown-menu", "@radix-ui/react-dialog"]
+        }
+      }
+    },
   },
 });

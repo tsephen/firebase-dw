@@ -11,7 +11,14 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { listUsersWithRoles, setUserRole, type UserRole, adminDisableUser, adminDeleteUser, adminEnableUser } from "@/lib/firebase";
+import {
+  listUsersWithRoles,
+  setUserRole,
+  type UserRole,
+  adminDisableUser,
+  adminDeleteUser,
+  adminEnableUser
+} from "@/lib/firebase";
 import { Shield, ShieldOff, Ban, Trash2 } from "lucide-react";
 import {
   AlertDialog,
