@@ -1,4 +1,19 @@
 import express, { type Request, Response, NextFunction } from "express";
+import admin from "firebase-admin";
+import path from "path";
+import { fileURLToPath } from "url";
+import { config } from "dotenv";
+
+// Load environment variables from .env
+config();
+
+// Initialize Firebase Admin SDK
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const serviceAccountPath = path.resolve(__dirname, "../attached_assets/service-account.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccountPath),
+  databaseURL: `https://${process.env.VITE_FIREBASE_PROJECT_ID?.trim()}.firebaseio.com`
+});
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 

@@ -2,10 +2,26 @@ import { useEffect, useState } from "react";
 import { auth, getUserRole } from "./firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 
+// Synchronous auth state check from localStorage
+function getStoredAuthState() {
+  try {
+    const stored = localStorage.getItem('firebaseAuth');
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const storedAuth = getStoredAuthState();
+    return storedAuth ? { ...storedAuth.user, stsTokenManager: storedAuth.stsTokenManager } : null;
+  });
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<string>('user');
+  const [role, setRole] = useState<string>(() => {
+    const storedAuth = getStoredAuthState();
+    return storedAuth?.role || 'user';
+  });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -17,6 +33,28 @@ export function useAuth() {
       }
       setLoading(false);
     });
+
+    // Update localStorage after auth state resolves
+    const updateStorage = async () => {
+      if (user) {
+        const userRole = await getUserRole(user.uid);
+        localStorage.setItem('firebaseAuth', JSON.stringify({
+          user: {
+            uid: user.uid,
+            email: user.email,
+            emailVerified: user.emailVerified,
+            displayName: user.displayName,
+            providerData: user.providerData
+          },
+          stsTokenManager: (user as any).stsTokenManager,
+          role: userRole
+        }));
+      } else {
+        localStorage.removeItem('firebaseAuth');
+      }
+    };
+
+    updateStorage();
 
     return () => unsubscribe();
   }, []);

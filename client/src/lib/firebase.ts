@@ -14,7 +14,9 @@ import {
   updatePassword as firebaseUpdatePassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
-  signOut
+  signOut as firebaseSignOut,
+  setPersistence,
+  browserLocalPersistence
 } from "firebase/auth";
 import {
   getFirestore,
@@ -42,17 +44,24 @@ if (Object.values(requiredEnvVars).some(value => !value)) {
 
 const firebaseConfig = {
   apiKey: requiredEnvVars.apiKey,
-  authDomain: `${requiredEnvVars.projectId}.firebaseapp.com`,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: requiredEnvVars.projectId,
-  storageBucket: `${requiredEnvVars.projectId}.appspot.com`,
-  appId: requiredEnvVars.appId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: requiredEnvVars.appId
 };
 
-// Initialize Firebase
+// Initialize Firebase with session persistence
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 auth.useDeviceLanguage();
+
+// Set up auth state persistence
+setPersistence(auth, browserLocalPersistence)
+  .catch((error) => {
+    console.error('Error setting auth persistence:', error);
+  });
 
 // Configure Auth Providers
 const googleProvider = new GoogleAuthProvider();
@@ -172,6 +181,10 @@ export async function adminDeleteUser(userId: string) {
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Failed to delete user');
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'User deletion partially failed');
     }
 
     console.log('User successfully deleted from both Firestore and Authentication');
@@ -325,7 +338,7 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
-  return auth.signOut();
+  return firebaseSignOut(auth);
 }
 
 export async function sendVerificationEmail() {
@@ -402,5 +415,42 @@ export async function adminDisableUser(userId: string) {
   } catch (error: any) {
     console.error('Error in admin disable user:', error);
     throw new Error(error.message || 'Failed to disable user');
+  }
+}
+
+export async function adminEnableUser(userId: string) {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('No user is currently signed in');
+    }
+
+    const adminRole = await getUserRole(currentUser.uid);
+    if (adminRole !== 'admin') {
+      throw new Error('Only admins can enable other users');
+    }
+
+    // First enable the user's authentication account
+    const idToken = await currentUser.getIdToken();
+    const response = await fetch(`/api/admin/enableUser?userId=${userId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${idToken}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to enable user');
+    }
+
+    // Then update user's role to user
+    await setUserRole(userId, 'user');
+
+    console.log('User successfully enabled');
+    return true;
+  } catch (error: any) {
+    console.error('Error in admin enable user:', error);
+    throw new Error(error.message || 'Failed to enable user');
   }
 }

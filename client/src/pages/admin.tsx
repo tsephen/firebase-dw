@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { listUsersWithRoles, setUserRole, type UserRole, adminDisableUser } from "@/lib/firebase";
-import { Shield, ShieldOff, Ban } from "lucide-react";
+import { listUsersWithRoles, setUserRole, type UserRole, adminDisableUser, adminDeleteUser, adminEnableUser } from "@/lib/firebase";
+import { Shield, ShieldOff, Ban, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,6 +86,30 @@ export default function Admin() {
     }
   };
 
+  const handleEnableUser = async (userId: string) => {
+    try {
+      await adminEnableUser(userId);
+
+      // Update local state to show user as enabled
+      setUsers(prevUsers => prevUsers.map(u =>
+        u.userId === userId
+          ? { ...u, role: 'user', updatedAt: new Date().toISOString() }
+          : u
+      ));
+
+      toast({
+        title: "Success",
+        description: "User has been enabled"
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to enable user"
+      });
+    }
+  };
+
   const handleDisableUser = async (userId: string) => {
     try {
       await adminDisableUser(userId);
@@ -106,6 +130,28 @@ export default function Admin() {
         variant: "destructive",
         title: "Error",
         description: error.message || "Failed to disable user"
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      // Delete from both Firestore and Auth
+      await adminDeleteUser(userId);
+      await adminDeleteUser(userId);
+
+      // Remove user from local state
+      setUsers(prevUsers => prevUsers.filter(u => u.userId !== userId));
+
+      toast({
+        title: "Success",
+        description: "User has been permanently deleted"
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete user"
       });
     }
   };
@@ -156,7 +202,37 @@ export default function Admin() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
-                    {user.role !== 'disabled' && (
+                    {user.role === 'disabled' ? (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                          >
+                            <Shield className="h-4 w-4" />
+                            Enable User
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Enable User Account</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action will restore the user's access to the application.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleEnableUser(user.userId)}
+                              className="bg-green-600 text-white hover:bg-green-700"
+                            >
+                              Enable User
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    ) : (
                       <Button
                         variant="outline"
                         size="sm"
@@ -207,6 +283,36 @@ export default function Admin() {
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
                             Disable
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="gap-2"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete User
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Permanently Delete User</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete the user account and all associated data. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteUser(user.userId)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
