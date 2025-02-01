@@ -49,11 +49,7 @@ export function Navbar() {
                 Sign out
               </Button>
             </div>
-          ) : (
-            <Button variant="ghost" asChild>
-              <Link href="/">Sign in</Link>
-            </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </nav>

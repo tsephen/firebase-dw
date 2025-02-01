@@ -1,8 +1,26 @@
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoginForm } from "@/components/auth/login-form";
 import { SignupForm } from "@/components/auth/signup-form";
+import { useAuth } from "@/lib/auth";
 
 export default function Landing() {
+  const { user } = useAuth();
+  const [_, navigate] = useLocation();
+
+  useEffect(() => {
+    if (user?.emailVerified) {
+      navigate("/welcome");
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (user && user.emailVerified) {
+      navigate("/welcome");
+    }
+  }, [user, navigate]);
+
   return (
     <div className="container flex min-h-screen items-center justify-center">
       <div className="flex flex-col items-center space-y-6">
