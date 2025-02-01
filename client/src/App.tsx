@@ -9,6 +9,7 @@ import Landing from "@/pages/landing";
 import Welcome from "@/pages/welcome";
 import Admin from "@/pages/admin";
 import Profile from "@/pages/profile";
+import Settings from "@/pages/settings";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import DataDeletion from "@/pages/data-deletion";
 import { useAuth } from "@/lib/auth";
@@ -55,6 +56,7 @@ function Router() {
       <Route path="/welcome" component={Welcome} />
       {role === 'admin' && <Route path="/admin" component={Admin} />}
       <Route path="/profile" component={Profile} />
+      <Route path="/settings" component={Settings} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/data-deletion" component={DataDeletion} />
       <Route component={NotFound} />

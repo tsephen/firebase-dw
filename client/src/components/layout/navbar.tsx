@@ -35,7 +35,7 @@ export function Navbar() {
                 className="gap-2"
                 asChild
               >
-                <Link href="/profile">
+                <Link href="/settings"> {/* Updated link to settings */}
                   <UserCircle className="h-4 w-4" />
                   <span className="text-sm text-muted-foreground">
                     {user.displayName}
