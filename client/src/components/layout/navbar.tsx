@@ -20,9 +20,8 @@ export function Navbar() {
             {user && user.emailVerified && (
               <>
                 <Link href="/welcome">Welcome</Link>
-                {role === 'admin' && (
-                  <Link href="/admin">Admin</Link>
-                )}
+                {role === "admin" && <Link href="/admin">Admin</Link>}
+                <Link href="/profile">Profile</Link>
               </>
             )}
           </div>
@@ -30,22 +29,15 @@ export function Navbar() {
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           {user ? (
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                className="gap-2"
-                asChild
-              >
-                <Link href="/settings"> {/* Updated link to settings */}
+              <Button variant="ghost" className="gap-2" asChild>
+                <Link href="/settings">
                   <UserCircle className="h-4 w-4" />
                   <span className="text-sm text-muted-foreground">
                     {user.displayName}
                   </span>
                 </Link>
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => signOut()}
-              >
+              <Button variant="ghost" onClick={() => signOut()}>
                 Sign out
               </Button>
             </div>
