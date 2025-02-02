@@ -2,8 +2,19 @@
 import { useRequireAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc
+} from "firebase/firestore";
+import {
+  getStorage,
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  listAll
+} from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,11 +30,24 @@ import {
 import { Edit } from "lucide-react";
 import React from "react";
 
-// Define a proper Textarea component.
+// Define a Textarea component.
 type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
 const Textarea: React.FC<TextareaProps> = ({ className, ...props }) => (
   <textarea {...props} className={`p-2 border rounded w-full ${className || ""}`} />
 );
+
+// Helper: Extract file name from a download URL.
+const extractFileName = (url: string): string => {
+  try {
+    const parsedUrl = new URL(url);
+    const decodedPath = decodeURIComponent(parsedUrl.pathname);
+    const segments = decodedPath.split('/');
+    return segments[segments.length - 1];
+  } catch (err) {
+    console.error("Error parsing URL:", url, err);
+    return "";
+  }
+};
 
 // Get Firestore and Storage instances.
 const firestore = getFirestore();
@@ -33,21 +57,27 @@ export default function Profile() {
   const { user, loading } = useRequireAuth();
   const { toast } = useToast();
 
-  // State for profile fields.
+  // State for text fields.
   const [interests, setInterests] = useState("");
   const [bio, setBio] = useState("");
   const [lookingFor, setLookingFor] = useState("");
   const [gender, setGender] = useState("");
+  // We store the folder path (in Firestore under "url") where photos are saved.
+  const [folderPath, setFolderPath] = useState<string>("");
+  // For rendering, we use an array of download URLs.
   const [photoURLs, setPhotoURLs] = useState<string[]>([]);
-  const [primaryPhoto, setPrimaryPhoto] = useState<number | null>(null);
+  // Store the generated file names corresponding to each upload.
+  const [photoFileNames, setPhotoFileNames] = useState<string[]>([]);
+  // primaryPhoto will be stored as the generated file name (e.g. "1738515916844-updatedlogo.png").
+  const [primaryPhoto, setPrimaryPhoto] = useState<string>("");
   // Temporary state for files selected for upload.
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
-  // State for toggling between view and edit modes.
+  // Toggle between view and edit modes.
   const [editing, setEditing] = useState(false);
-  // Store the originally fetched profile so we can compare changes.
+  // Store originally fetched profile data.
   const [originalProfile, setOriginalProfile] = useState<any>({});
 
-  // On mount, fetch existing profile data from Firestore.
+  // On mount, fetch profile data from Firestore.
   useEffect(() => {
     if (user?.uid) {
       const docRef = doc(firestore, "users", user.uid);
@@ -60,8 +90,34 @@ export default function Profile() {
             setBio(data.bio || "");
             setLookingFor(data.lookingFor || "");
             setGender(data.gender || "");
-            setPhotoURLs(data.photos || []);
-            setPrimaryPhoto(data.primaryPhoto ?? null);
+            if (data.url) {
+              setFolderPath(data.url);
+              console.log("Fetched folder path from Firestore:", data.url);
+              // List all files in the folder and convert them to download URLs.
+              const folderRef = ref(storage, data.url);
+              listAll(folderRef)
+                .then((res) => {
+                  return Promise.all(
+                    res.items.map((item) => getDownloadURL(item))
+                  );
+                })
+                .then((urls) => {
+                  console.log("Converted file paths to download URLs:", urls);
+                  setPhotoURLs(urls);
+                  // Extract file names and store them.
+                  const names = urls.map(url => extractFileName(url));
+                  setPhotoFileNames(names);
+                  // If a primary photo is not already set, default to the first one.
+                  if (names.length > 0 && !data.primaryPhoto) {
+                    setPrimaryPhoto(names[0]);
+                  } else if (data.primaryPhoto) {
+                    setPrimaryPhoto(data.primaryPhoto);
+                  }
+                })
+                .catch((err) => {
+                  console.error("Error listing photos:", err);
+                });
+            }
             console.log("Fetched profile data:", data);
           } else {
             console.log("No profile document found; using defaults.");
@@ -73,7 +129,7 @@ export default function Profile() {
     }
   }, [user]);
 
-  // Validate file type and size.
+  // Helper: Validate file type and size.
   const validateFiles = (files: File[]): string | null => {
     const allowedTypes = ["image/jpeg", "image/png"];
     const maxSize = 2 * 1024 * 1024; // 2MB
@@ -88,10 +144,15 @@ export default function Profile() {
     return null;
   };
 
-  // Handle photo file selection and upload using Promise.all.
+  // Handle photo file selection and upload.
+  // This function uses a fixed folder path and generates unique file names.
+  // It saves the folder path to Firestore (in "url"), uploads the files,
+  // and stores both the download URLs (for display) and generated file names.
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("Photo upload triggered.");
     if (e.target.files) {
       const files = Array.from(e.target.files);
+      console.log("Selected files:", files);
       if (files.length > 5) {
         toast({
           title: "Error",
@@ -109,39 +170,67 @@ export default function Profile() {
         return;
       }
       setUploadFiles(files);
-      const uploadPromises = files.map((file) => {
-        const storageRef = ref(
-          storage,
-          `users/${user!.uid}/photos/${Date.now()}-${file.name}`
-        );
+      
+      // Use an existing folderPath if available; otherwise, generate one.
+      const folder = folderPath || `users/${user!.uid}/photos/`;
+      console.log("Using folder path:", folder);
+      
+      // Save the folder path to Firestore (in the "url" field).
+      try {
+        await setDoc(doc(firestore, "users", user.uid), { url: folder }, { merge: true });
+        console.log("Folder path saved to Firestore as 'url':", folder);
+        setFolderPath(folder);
+      } catch (err) {
+        console.error("Error saving folder path to Firestore:", err);
+      }
+      
+      // Generate unique file names for each file.
+      const timestamp = Date.now();
+      const fileNames = files.map(file => `${timestamp}-${file.name}`);
+      console.log("Generated file names:", fileNames);
+      setPhotoFileNames(fileNames);
+      // Build full file paths.
+      const filePaths = fileNames.map(name => folder + name);
+      console.log("Generated full file paths:", filePaths);
+      
+      // Upload each file to Storage using the generated file paths.
+      const uploadPromises = files.map((file, index) => {
+        const fullPath = filePaths[index];
+        const storageRef = ref(storage, fullPath);
+        console.log("Uploading file:", file.name, "to", storageRef.fullPath);
         const uploadTask = uploadBytesResumable(storageRef, file);
         return new Promise<string>((resolve, reject) => {
           uploadTask.on(
             "state_changed",
             (snapshot) => {
-              // Optional: update progress if desired.
+              // Optional: update progress here.
             },
             (error) => {
-              console.error("Upload error:", error);
+              console.error("Upload error for file", file.name, ":", error);
               reject(error);
             },
             async () => {
               try {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                console.log("File uploaded:", file.name, "Download URL:", downloadURL);
                 resolve(downloadURL);
               } catch (err) {
+                console.error("Error getting download URL for file", file.name, ":", err);
                 reject(err);
               }
             }
           );
         });
       });
+      
       try {
         const uploadedURLs = await Promise.all(uploadPromises);
-        console.log("Uploaded photo URLs:", uploadedURLs);
+        console.log("All uploaded photo download URLs:", uploadedURLs);
         setPhotoURLs(uploadedURLs);
-        if (uploadedURLs.length > 0) {
-          setPrimaryPhoto(0); // Set the first image as primary.
+        // If no primary photo is set yet, default to the first file name.
+        if (fileNames.length > 0 && !primaryPhoto) {
+          setPrimaryPhoto(fileNames[0]);
+          console.log("Primary photo set to:", fileNames[0]);
         }
         toast({
           title: "Photos Uploaded",
@@ -158,30 +247,37 @@ export default function Profile() {
     }
   };
 
-  // Save the profile data to Firestore—only update fields that have changed.
+  // Handle selecting a main photo.
+  // When a user clicks "Select as Main," we set primaryPhoto to the corresponding file name.
+  const handleSelectMain = (fileName: string) => {
+    console.log("Selecting main photo with file name:", fileName);
+    setPrimaryPhoto(fileName);
+  };
+
+  // Save the profile data to Firestore.
+  // We update text fields as well as the "url" (folder path) and "primaryPhoto" (the file name).
   const handleSaveProfile = async () => {
     if (!user?.uid) return;
     try {
-      const profileData: any = {};
-      if (interests !== originalProfile.interests) profileData.interests = interests;
-      if (bio !== originalProfile.bio) profileData.bio = bio;
-      if (lookingFor !== originalProfile.lookingFor) profileData.lookingFor = lookingFor;
-      if (gender !== originalProfile.gender) profileData.gender = gender;
-      // Only update photos if the array is non-empty.
-      if (photoURLs.length > 0 && JSON.stringify(photoURLs) !== JSON.stringify(originalProfile.photos)) {
-        profileData.photos = photoURLs;
-        profileData.primaryPhoto = primaryPhoto !== null ? primaryPhoto : 0;
-      }
-      console.log("Saving profile data:", profileData);
+      const profileData = {
+        interests,
+        bio,
+        lookingFor,
+        gender,
+        url: folderPath,        // Folder path where images are stored.
+        primaryPhoto,           // The file name of the selected main image.
+      };
+      console.log("Saving profile data to Firestore:", profileData);
       const docRef = doc(firestore, "users", user.uid);
       await setDoc(docRef, profileData, { merge: true });
+      console.log("Profile data saved successfully to Firestore.");
       toast({
         title: "Success",
         description: "Profile updated successfully.",
       });
       setEditing(false);
     } catch (error: any) {
-      console.error("Error saving profile:", error);
+      console.error("Error saving profile to Firestore:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -304,14 +400,19 @@ export default function Profile() {
                           alt={`Photo ${index + 1}`}
                           className="object-cover w-full h-32 rounded border"
                         />
-                        <div className="absolute top-1 right-1">
-                          <input
-                            type="radio"
-                            checked={primaryPhoto === index}
-                            onChange={() => setPrimaryPhoto(index)}
-                            title="Set as primary"
-                          />
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => handleSelectMain(photoFileNames[index])}
+                          className="absolute bottom-1 right-1"
+                        >
+                          Select as Main
+                        </Button>
+                        {photoFileNames[index] === primaryPhoto && (
+                          <div className="absolute top-1 right-1 bg-primary text-white px-1 text-xs rounded">
+                            Main
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -332,7 +433,7 @@ export default function Profile() {
                           alt={`Photo ${index + 1}`}
                           className="object-cover w-full h-32 rounded border"
                         />
-                        {primaryPhoto === index && (
+                        {photoFileNames[index] === primaryPhoto && (
                           <div className="absolute top-1 right-1 bg-primary text-white px-1 text-xs rounded">
                             Main
                           </div>
