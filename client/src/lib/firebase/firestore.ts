@@ -2,7 +2,6 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, getDocs, writeBatch, where } from "firebase/firestore";
 import type { UserRole, UserRoleData } from "./types";
 export { auth } from "./auth";
-import { auth } from "./auth";
 
 // Firebase configuration
 const firebaseConfig = {

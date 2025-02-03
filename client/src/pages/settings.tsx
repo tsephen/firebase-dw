@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
-import { updateProfile, updatePassword, User } from "@/lib/firebase";
+import { updatePassword, User } from "@/lib/firebase";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,10 +15,10 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 
-// A simple refresh icon component; you can replace this with an icon from your library.
+// A simple refresh icon component; you can replace this with your icon library.
 const RefreshIcon = ({ onClick }: { onClick: () => void }) => (
   <button
     type="button"
@@ -58,12 +58,12 @@ export default function Settings() {
   const { user, loading } = useRequireAuth();
   const { toast } = useToast();
 
-  // Profile state.
+  // Personal Information state.
   const [isEditing, setIsEditing] = useState(false);
-  const [newDisplayName, setNewDisplayName] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [birthdate, setBirthdate] = useState("");
   const [birthdateError, setBirthdateError] = useState("");
-  const [userLocation, setUserLocation] = useState("");
+  const [location, setLocation] = useState("");
   const [language, setLanguage] = useState("English");
 
   // Password state.
@@ -81,15 +81,15 @@ export default function Settings() {
         .then((docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setNewDisplayName(data.displayName || extendedUser.displayName || "");
+            setDisplayName(data.displayName || extendedUser.displayName || "");
             setBirthdate(data.birthdate || extendedUser.birthdate || "");
-            setUserLocation(data.location || extendedUser.location || "");
+            setLocation(data.location || extendedUser.location || "");
             setLanguage(data.language || extendedUser.language || "English");
           } else {
-            // No document exists yet, so use values from the auth user.
-            setNewDisplayName(extendedUser.displayName || "");
+            // No document exists yet; use values from the auth user.
+            setDisplayName(extendedUser.displayName || "");
             setBirthdate(extendedUser.birthdate || "");
-            setUserLocation(extendedUser.location || "");
+            setLocation(extendedUser.location || "");
             setLanguage(extendedUser.language || "English");
           }
         })
@@ -99,15 +99,14 @@ export default function Settings() {
     }
   }, [extendedUser]);
 
-  // Auto-populate location only if no record exists.
+  // Auto-populate location if not set in Firestore.
   useEffect(() => {
-    if (!extendedUser?.location && !userLocation && navigator.geolocation) {
+    if ((!extendedUser?.location || extendedUser.location === "") && (!location || location === "") && navigator.geolocation) {
       fetchLocation();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [extendedUser, userLocation]);
+  }, [extendedUser, location]);
 
-  // Function to fetch location via geolocation and reverse-geocode API.
+  // Function to fetch location using the browser's geolocation API and a reverse-geocode service.
   const fetchLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -119,13 +118,13 @@ export default function Settings() {
             .then((data) => {
               const city = data.city || "Unknown city";
               const country = data.country || data.countryName || "Unknown country";
-              setUserLocation(`${city}, ${country}`);
+              setLocation(`${city}, ${country}`);
             })
-            .catch(() => setUserLocation("Unknown location"));
+            .catch(() => setLocation("Unknown location"));
         },
         (error) => {
           console.error("Geolocation error:", error);
-          setUserLocation("Unknown location");
+          setLocation("Unknown location");
         }
       );
     }
@@ -147,13 +146,14 @@ export default function Settings() {
 
     try {
       const profileData = {
-        displayName: newDisplayName,
+        displayName,
         birthdate,
-        location: userLocation,
+        location,
         language,
       };
 
       const docRef = doc(firestore, "users", extendedUser.uid);
+      // Merge only the settings fields into Firestore.
       await setDoc(docRef, profileData, { merge: true });
       toast({
         title: "Success",
@@ -201,13 +201,25 @@ export default function Settings() {
     <div className="container py-8 space-y-6">
       <h1 className="text-3xl font-bold">Profile Settings</h1>
 
-      {/* Profile Information Card */}
+      {/* Personal Information Card */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex justify-between items-center">
           <CardTitle>Personal Information</CardTitle>
+          {isEditing ? (
+            <div className="flex gap-2">
+              <Button onClick={handleUpdateProfile}>Save</Button>
+              <Button variant="outline" onClick={() => setIsEditing(false)}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+              Edit
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Email Display */}
+          {/* Email (read-only) */}
           <div className="space-y-2">
             <Label>Email</Label>
             <p className="text-sm text-muted-foreground">{extendedUser?.email}</p>
@@ -217,86 +229,87 @@ export default function Settings() {
           <div className="space-y-2">
             <Label>Display Name</Label>
             {isEditing ? (
-              <div className="flex gap-2">
-                <Input
-                  value={newDisplayName}
-                  onChange={(e) => setNewDisplayName(e.target.value)}
-                  placeholder={extendedUser?.displayName || ""}
-                />
-                <Button onClick={handleUpdateProfile}>Save</Button>
-                <Button variant="outline" onClick={() => setIsEditing(false)}>
-                  Cancel
-                </Button>
-              </div>
+              <Input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Display Name"
+              />
             ) : (
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground">
-                  {extendedUser?.displayName || "No display name"}
-                </p>
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                  Edit
-                </Button>
-              </div>
+              <p className="text-sm text-muted-foreground">{displayName || "No display name"}</p>
             )}
           </div>
 
           {/* Birthdate */}
           <div className="space-y-2">
             <Label>Birthdate</Label>
-            <Input
-              type="date"
-              value={birthdate}
-              onChange={(e) => {
-                const inputValue = e.target.value;
-                const selectedDate = new Date(inputValue);
-                const today = new Date();
-                const minAgeDate = new Date(
-                  today.getFullYear() - 18,
-                  today.getMonth(),
-                  today.getDate()
-                );
-                if (selectedDate > minAgeDate) {
-                  setBirthdateError("You must be 18 years or older");
-                } else {
-                  setBirthdateError("");
-                }
-                setBirthdate(inputValue);
-              }}
-              max={new Date().toISOString().split("T")[0]}
-            />
+            {isEditing ? (
+              <Input
+                type="date"
+                value={birthdate}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  const selectedDate = new Date(inputValue);
+                  const today = new Date();
+                  const minAgeDate = new Date(
+                    today.getFullYear() - 18,
+                    today.getMonth(),
+                    today.getDate()
+                  );
+                  if (selectedDate > minAgeDate) {
+                    setBirthdateError("You must be 18 years or older");
+                  } else {
+                    setBirthdateError("");
+                  }
+                  setBirthdate(inputValue);
+                }}
+                max={new Date().toISOString().split("T")[0]}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {birthdate ? new Date(birthdate).toLocaleDateString() : "Not set"}
+              </p>
+            )}
             {birthdateError && <p className="text-sm text-red-500">{birthdateError}</p>}
           </div>
 
-          {/* Location with Refresh Icon */}
-          <div className="space-y-2 flex items-center">
+          {/* Location */}
+          <div className="space-y-2">
             <Label>Location</Label>
-            <div className="flex items-center">
-              <Input
-                value={userLocation}
-                onChange={(e) => setUserLocation(e.target.value)}
-                placeholder="City, Country"
-              />
-              <RefreshIcon onClick={fetchLocation} />
-            </div>
+            {isEditing ? (
+              <div className="flex items-center">
+                <Input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="City, Country"
+                />
+                <RefreshIcon onClick={fetchLocation} />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{location || "Not set"}</p>
+            )}
           </div>
 
           {/* Language */}
           <div className="space-y-2">
             <Label>Language</Label>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {["English", "Spanish", "French", "German", "Japanese"].map((lang) => (
-                    <SelectItem key={lang} value={lang}>
-                      {lang}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            {isEditing ? (
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {["English", "Spanish", "French", "German", "Japanese"].map((lang) => (
+                      <SelectItem key={lang} value={lang}>
+                        {lang}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="text-sm text-muted-foreground">{language}</p>
+            )}
           </div>
         </CardContent>
       </Card>
