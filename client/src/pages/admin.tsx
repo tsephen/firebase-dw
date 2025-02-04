@@ -17,7 +17,7 @@ import {
   type UserRole,
   adminDisableUser,
   adminDeleteUser,
-  adminEnableUser
+  adminEnableUser,
 } from "@/lib/firebase";
 import { Shield, ShieldOff, Ban, Trash2 } from "lucide-react";
 import {
@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useTranslation } from "react-i18next";
 
 type UserWithRole = {
   userId: string;
@@ -41,6 +42,7 @@ type UserWithRole = {
 };
 
 export default function Admin() {
+  const { t } = useTranslation();
   const { loading } = useRequireAdmin();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -54,8 +56,8 @@ export default function Admin() {
       } catch (error: any) {
         toast({
           variant: "destructive",
-          title: "Error",
-          description: error.message || "Failed to load users"
+          title: t("error"),
+          description: error.message || t("failedToLoadUsers"),
         });
       } finally {
         setLoadingUsers(false);
@@ -65,13 +67,11 @@ export default function Admin() {
     if (!loading) {
       loadUsers();
     }
-  }, [loading, toast]);
+  }, [loading, toast, t]);
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     try {
       await setUserRole(userId, newRole);
-
-      // Update local state
       setUsers(prevUsers =>
         prevUsers.map(u =>
           u.userId === userId
@@ -79,16 +79,15 @@ export default function Admin() {
             : u
         )
       );
-
       toast({
-        title: "Success",
-        description: `User role updated to ${newRole}`
+        title: t("success"),
+        description: t("userRoleUpdated", { role: newRole }),
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to update user role"
+        title: t("error"),
+        description: error.message || t("failedToUpdateUserRole"),
       });
     }
   };
@@ -96,23 +95,22 @@ export default function Admin() {
   const handleEnableUser = async (userId: string) => {
     try {
       await adminEnableUser(userId);
-
-      // Update local state to show user as enabled
-      setUsers(prevUsers => prevUsers.map(u =>
-        u.userId === userId
-          ? { ...u, role: 'user', updatedAt: new Date().toISOString() }
-          : u
-      ));
-
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.userId === userId
+            ? { ...u, role: "user", updatedAt: new Date().toISOString() }
+            : u
+        )
+      );
       toast({
-        title: "Success",
-        description: "User has been enabled"
+        title: t("success"),
+        description: t("userEnabled"),
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to enable user"
+        title: t("error"),
+        description: error.message || t("failedToEnableUser"),
       });
     }
   };
@@ -120,45 +118,39 @@ export default function Admin() {
   const handleDisableUser = async (userId: string) => {
     try {
       await adminDisableUser(userId);
-
-      // Update local state to show user as disabled
-      setUsers(prevUsers => prevUsers.map(u =>
-        u.userId === userId
-          ? { ...u, role: 'disabled', updatedAt: new Date().toISOString() }
-          : u
-      ));
-
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.userId === userId
+            ? { ...u, role: "disabled", updatedAt: new Date().toISOString() }
+            : u
+        )
+      );
       toast({
-        title: "Success",
-        description: "User has been disabled"
+        title: t("success"),
+        description: t("userDisabled"),
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to disable user"
+        title: t("error"),
+        description: error.message || t("failedToDisableUser"),
       });
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      // Delete from both Firestore and Auth
       await adminDeleteUser(userId);
-      await adminDeleteUser(userId);
-
-      // Remove user from local state
       setUsers(prevUsers => prevUsers.filter(u => u.userId !== userId));
-
       toast({
-        title: "Success",
-        description: "User has been permanently deleted"
+        title: t("success"),
+        description: t("userDeleted"),
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to delete user"
+        title: t("error"),
+        description: error.message || t("failedToDeleteUser"),
       });
     }
   };
@@ -176,10 +168,8 @@ export default function Admin() {
     <div className="container py-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="mt-2 text-muted-foreground">
-            Manage users and their roles
-          </p>
+          <h1 className="text-3xl font-bold">{t("adminDashboard")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("manageUsers")}</p>
         </div>
       </div>
 
@@ -187,54 +177,52 @@ export default function Admin() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>User ID</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Last Updated</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t("user")}</TableHead>
+              <TableHead>{t("userId")}</TableHead>
+              <TableHead>{t("email")}</TableHead>
+              <TableHead>{t("role")}</TableHead>
+              <TableHead>{t("lastUpdated")}</TableHead>
+              <TableHead className="text-right">{t("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.map((user) => (
               <TableRow key={user.userId}>
-                <TableCell>{user.displayName || "N/A"}</TableCell>
+                <TableCell>{user.displayName || t("nA")}</TableCell>
                 <TableCell className="font-mono text-sm text-muted-foreground">
                   {user.userId}
                 </TableCell>
-                <TableCell>{user.email || "N/A"}</TableCell>
+                <TableCell>{user.email || t("nA")}</TableCell>
                 <TableCell className="capitalize">{user.role}</TableCell>
                 <TableCell>
                   {new Date(user.updatedAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
-                    {user.role === 'disabled' ? (
+                    {user.role === "disabled" ? (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                          >
+                          <Button variant="outline" size="sm" className="gap-2">
                             <Shield className="h-4 w-4" />
-                            Enable User
+                            {t("enableUser")}
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Enable User Account</AlertDialogTitle>
+                            <AlertDialogTitle>
+                              {t("enableUserAccountTitle")}
+                            </AlertDialogTitle>
                             <AlertDialogDescription>
-                              This action will restore the user's access to the application.
+                              {t("enableUserAccountDescription")}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => handleEnableUser(user.userId)}
                               className="bg-green-600 text-white hover:bg-green-700"
                             >
-                              Enable User
+                              {t("enableUserAction")}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -253,12 +241,12 @@ export default function Admin() {
                         {user.role === "admin" ? (
                           <>
                             <ShieldOff className="mr-2 h-4 w-4" />
-                            Remove Admin
+                            {t("removeAdmin")}
                           </>
                         ) : (
                           <>
                             <Shield className="mr-2 h-4 w-4" />
-                            Make Admin
+                            {t("makeAdmin")}
                           </>
                         )}
                       </Button>
@@ -270,26 +258,28 @@ export default function Admin() {
                           variant="destructive"
                           size="sm"
                           className="gap-2"
-                          disabled={user.role === 'disabled'}
+                          disabled={user.role === "disabled"}
                         >
                           <Ban className="h-4 w-4" />
-                          Disable User
+                          {t("disableUser")}
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Disable User Account</AlertDialogTitle>
+                          <AlertDialogTitle>
+                            {t("disableUserAccountTitle")}
+                          </AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action will disable the user account. The user will no longer be able to access the application.
+                            {t("disableUserAccountDescription")}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleDisableUser(user.userId)}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
-                            Disable
+                            {t("disable")}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -297,29 +287,27 @@ export default function Admin() {
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="gap-2"
-                        >
+                        <Button variant="destructive" size="sm" className="gap-2">
                           <Trash2 className="h-4 w-4" />
-                          Delete User
+                          {t("deleteUser")}
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Permanently Delete User</AlertDialogTitle>
+                          <AlertDialogTitle>
+                            {t("permanentlyDeleteUserTitle")}
+                          </AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will permanently delete the user account and all associated data. This action cannot be undone.
+                            {t("permanentlyDeleteUserDescription")}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleDeleteUser(user.userId)}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
-                            Delete
+                            {t("delete")}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

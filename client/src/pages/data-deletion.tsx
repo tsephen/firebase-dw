@@ -1,19 +1,20 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 
 export default function DataDeletion() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real implementation, this would submit to your backend
     toast({
-      title: "Request Received",
-      description: "We'll process your data deletion request within 30 days.",
+      title: t("requestReceived"),
+      description: t("dataDeletionRequestDescription"),
     });
     setEmail("");
   };
@@ -21,58 +22,39 @@ export default function DataDeletion() {
   return (
     <div className="container py-8">
       <Card>
-        <CardHeader>
-          <CardTitle>Data Deletion Request</CardTitle>
-        </CardHeader>
         <CardContent className="prose dark:prose-invert">
-          <h2>How to Delete Your Data</h2>
-          
-          <h3>Option 1: Through Your Account</h3>
-          <p>
-            If you have an active account, you can delete your data by:
-          </p>
+          <h2>{t("howToDeleteYourData")}</h2>
+          <h3>{t("option1")}</h3>
+          <p>{t("option1Description")}</p>
           <ol>
-            <li>Logging into your account</li>
-            <li>Going to Profile settings</li>
-            <li>Clicking on "Delete Account"</li>
+            <li>{t("logIntoAccount")}</li>
+            <li>{t("goToProfileSettings")}</li>
+            <li>{t("clickDeleteAccount")}</li>
           </ol>
-
-          <h3>Option 2: Submit a Deletion Request</h3>
-          <p>
-            If you don't have access to your account, you can submit a deletion request:
-          </p>
-          
+          <h3>{t("option2")}</h3>
+          <p>{t("option2Description")}</p>
           <form onSubmit={handleSubmit} className="space-y-4 not-prose">
             <div>
               <Input
                 type="email"
-                placeholder="Enter your email"
+                placeholder={t("enterYourEmail")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
-            <Button type="submit">Submit Deletion Request</Button>
+            <Button type="submit">{t("submitDeletionRequest")}</Button>
           </form>
-
-          <h3 className="mt-8">What Gets Deleted</h3>
-          <p>
-            When you request data deletion, we will remove:
-          </p>
+          <h3 className="mt-8">{t("whatGetsDeleted")}</h3>
+          <p>{t("whatGetsDeletedDescription")}</p>
           <ul>
-            <li>Your profile information</li>
-            <li>Authentication data</li>
-            <li>Usage history</li>
+            <li>{t("profileInformation")}</li>
+            <li>{t("authenticationData")}</li>
+            <li>{t("usageHistory")}</li>
           </ul>
-
-          <p>
-            Note: The deletion process may take up to 30 days to complete across all our systems.
-          </p>
-
-          <h3>Contact Us</h3>
-          <p>
-            If you have any questions about data deletion, please contact us at privacy@example.com
-          </p>
+          <p>{t("deletionProcessNote")}</p>
+          <h3>{t("contactUs")}</h3>
+          <p>{t("contactUsDescription")}</p>
         </CardContent>
       </Card>
     </div>

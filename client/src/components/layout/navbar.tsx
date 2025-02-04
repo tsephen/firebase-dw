@@ -1,11 +1,14 @@
+// client/src/components/Navbar.tsx
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { signOut } from "@/lib/firebase";
 import { Link } from "wouter";
 import { UserCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function Navbar() {
   const { user, role } = useAuth();
+  const { t } = useTranslation();
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -13,15 +16,15 @@ export function Navbar() {
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <span className="hidden font-bold sm:inline-block">
-              Auth Demo
+              {t("appTitle")}
             </span>
           </Link>
           <div className="flex gap-6 md:gap-10">
             {user && user.emailVerified && (
               <>
-                <Link href="/welcome">Welcome</Link>
-                {role === "admin" && <Link href="/admin">Admin</Link>}
-                <Link href="/profile">Profile</Link>
+                <Link href="/welcome">{t("menuWelcome")}</Link>
+                {role === "admin" && <Link href="/admin">{t("menuAdmin")}</Link>}
+                <Link href="/profile">{t("menuProfile")}</Link>
               </>
             )}
           </div>
@@ -38,7 +41,7 @@ export function Navbar() {
                 </Link>
               </Button>
               <Button variant="ghost" onClick={() => signOut()}>
-                Sign out
+                {t("signOut")}
               </Button>
             </div>
           ) : null}

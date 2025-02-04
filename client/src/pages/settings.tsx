@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
-import { updatePassword, User } from "@/lib/firebase";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { updatePassword } from "@/lib/firebase";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,8 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslation } from "react-i18next";
+import i18nInstance from "@/i18n"; // Our initialized i18n instance
 
-// A simple refresh icon component; you can replace this with your icon library.
 const RefreshIcon = ({ onClick }: { onClick: () => void }) => (
   <button
     type="button"
@@ -31,10 +32,8 @@ const RefreshIcon = ({ onClick }: { onClick: () => void }) => (
   </button>
 );
 
-// Get Firestore instance.
 const firestore = getFirestore();
 
-// Module augmentation for extended profile properties.
 declare module "@/lib/firebase" {
   interface User {
     displayName?: string;
@@ -44,7 +43,6 @@ declare module "@/lib/firebase" {
   }
 }
 
-// Extended type alias for our user (ensuring uid is present)
 type ExtendedUser = {
   uid: string;
   email?: string;
@@ -54,83 +52,189 @@ type ExtendedUser = {
   language?: string;
 } & Record<string, any>;
 
+// Mapping: user sees full names but we store the short code.
+const languageMapping: { [key: string]: string } = {
+  English: "en",
+  Spanish: "es",
+  en: "en",
+  es: "es",
+};
+
+// Options for the language select.
+const languageOptions = [
+  { code: "en", label: "English" },
+  { code: "es", label: "Español" },
+];
+
 export default function Settings() {
+  const { t } = useTranslation();
   const { user, loading } = useRequireAuth();
   const { toast } = useToast();
 
-  // Personal Information state.
+  // Local state for personal info.
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [birthdate, setBirthdate] = useState("");
   const [birthdateError, setBirthdateError] = useState("");
   const [location, setLocation] = useState("");
-  const [language, setLanguage] = useState("English");
-
-  // Password state.
+  // Store language as a short code; default to "en"
+  const [language, setLanguage] = useState("en");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Cast user to our extended type.
   const extendedUser = user as ExtendedUser | null;
 
-  // On mount, fetch profile data from Firestore.
   useEffect(() => {
     if (extendedUser?.uid) {
       const docRef = doc(firestore, "users", extendedUser.uid);
-      getDoc(docRef)
-        .then((docSnap) => {
+      const unsubscribe = onSnapshot(
+        docRef,
+        (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setDisplayName(data.displayName || extendedUser.displayName || "");
-            setBirthdate(data.birthdate || extendedUser.birthdate || "");
-            setLocation(data.location || extendedUser.location || "");
-            setLanguage(data.language || extendedUser.language || "English");
+            if (!isEditing) {
+              setDisplayName(data.displayName ?? "");
+              setBirthdate(data.birthdate ?? "");
+              // Only update location if Firestore has a valid value
+              if (data.location && data.location.trim() !== t("unknownLocation")) {
+                setLocation(data.location);
+              }
+              // If location is not set, fetch and update only the location field
+              if ((!data.location || data.location.trim() === "") && navigator.geolocation) {
+                fetchLocation();
+                (async () => {
+                  const locationUpdate = { location };
+                  const docRef = doc(firestore, "users", extendedUser.uid);
+                  try {
+                    await updateDoc(docRef, locationUpdate);
+                  } catch (error) {
+                    console.error("Error updating location in Firestore:", error);
+                  }
+                })();
+              }
+              setLanguage(languageMapping[data.language ?? "en"] || "en");
+            }
           } else {
-            // No document exists yet; use values from the auth user.
-            setDisplayName(extendedUser.displayName || "");
-            setBirthdate(extendedUser.birthdate || "");
-            setLocation(extendedUser.location || "");
-            setLanguage(extendedUser.language || "English");
+            if (!isEditing) {
+              setDisplayName(extendedUser.displayName ?? "");
+              setBirthdate(extendedUser.birthdate ?? "");
+              setLocation(extendedUser.location ?? "");
+              setLanguage(languageMapping[extendedUser.language ?? "en"] || "en");
+            }
           }
-        })
-        .catch((error) => {
-          console.error("Failed to fetch user profile:", error);
-        });
+          if (!isLoaded) setIsLoaded(true);
+        },
+        (error) => {
+          console.error("Failed to subscribe to user profile:", error);
+        }
+      );
+      return () => unsubscribe();
     }
-  }, [extendedUser]);
+  }, [extendedUser, isEditing, isLoaded, t, location]);  
 
-  // Auto-populate location if not set in Firestore.
+  // When language changes, update local storage and i18next.
   useEffect(() => {
-    if ((!extendedUser?.location || extendedUser.location === "") && (!location || location === "") && navigator.geolocation) {
-      fetchLocation();
-    }
-  }, [extendedUser, location]);
+    localStorage.setItem("lang", language);
+    i18nInstance.changeLanguage(language);
+  }, [language]);
 
-  // Function to fetch location using the browser's geolocation API and a reverse-geocode service.
+  // Fetch location using the browser's geolocation API.
   const fetchLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          const localityLang = language === "es" ? "es" : "en";
           fetch(
-            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}&localityLanguage=en`
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}&localityLanguage=${localityLang}`
           )
             .then((response) => response.json())
             .then((data) => {
-              const city = data.city || "Unknown city";
-              const country = data.country || data.countryName || "Unknown country";
+              const city = data.city || t("unknownCity") || "Unknown city";
+              const country =
+                data.country || data.countryName || t("unknownCountry") || "Unknown country";
               setLocation(`${city}, ${country}`);
             })
-            .catch(() => setLocation("Unknown location"));
+            .catch(() => setLocation(t("unknownLocation")));
         },
         (error) => {
           console.error("Geolocation error:", error);
-          setLocation("Unknown location");
+          if (error.code === error.PERMISSION_DENIED) {
+            toast({
+              variant: "destructive",
+              title: t("error"),
+              description: t("enableLocationPermission"),
+            });
+          }
+          setLocation(t("unknownLocation"));
         }
       );
+    } else {
+      toast({
+        variant: "destructive",
+        title: t("error"),
+        description: t("geolocationNotSupported"),
+      });
+      setLocation(t("unknownLocation"));
     }
   };
 
-  if (loading) {
+  // When saving, include location only if it's valid.
+  const handleUpdateProfile = async () => {
+    if (birthdateError) return;
+    if (!extendedUser?.uid) return;
+    try {
+      const profileData: any = {
+        displayName,
+        birthdate,
+        language,
+      };
+      if (location && location.trim() !== "" && location !== t("unknownLocation")) {
+        profileData.location = location;
+      }
+      const docRef = doc(firestore, "users", extendedUser.uid);
+      await setDoc(docRef, profileData, { merge: true });
+      toast({
+        title: t("save"),
+        description: t("profileUpdatedSuccessfully"),
+      });
+      setIsEditing(false);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: t("error"),
+        description: error.message,
+      });
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      toast({
+        variant: "destructive",
+        title: t("error"),
+        description: t("pleaseFillBothPasswordFields"),
+      });
+      return;
+    }
+    try {
+      await updatePassword(user!, currentPassword, newPassword);
+      toast({
+        title: t("success"),
+        description: t("passwordUpdatedSuccessfully"),
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: t("error"),
+        description: error.message,
+      });
+    }
+  };
+
+  if (loading || !isLoaded) {
     return (
       <div className="container py-8">
         <Skeleton className="h-8 w-[200px]" />
@@ -139,109 +243,46 @@ export default function Settings() {
     );
   }
 
-  // Handle profile update (display name, birthdate, location, language).
-  const handleUpdateProfile = async () => {
-    if (birthdateError) return;
-    if (!extendedUser?.uid) return;
-
-    try {
-      const profileData = {
-        displayName,
-        birthdate,
-        location,
-        language,
-      };
-
-      const docRef = doc(firestore, "users", extendedUser.uid);
-      // Merge only the settings fields into Firestore.
-      await setDoc(docRef, profileData, { merge: true });
-      toast({
-        title: "Success",
-        description: "Profile updated successfully",
-      });
-      setIsEditing(false);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-    }
-  };
-
-  // Handle password update.
-  const handleUpdatePassword = async () => {
-    if (!currentPassword || !newPassword) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please fill in both current and new password fields",
-      });
-      return;
-    }
-
-    try {
-      await updatePassword(user!, currentPassword, newPassword);
-      toast({
-        title: "Success",
-        description: "Password updated successfully",
-      });
-      setCurrentPassword("");
-      setNewPassword("");
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
-    }
-  };
-
   return (
     <div className="container py-8 space-y-6">
-      <h1 className="text-3xl font-bold">Profile Settings</h1>
-
-      {/* Personal Information Card */}
+      <h1 className="text-3xl font-bold">{t("profileSettings")}</h1>
       <Card>
         <CardHeader className="flex justify-between items-center">
-          <CardTitle>Personal Information</CardTitle>
+          <CardTitle>{t("personalInformation")}</CardTitle>
           {isEditing ? (
             <div className="flex gap-2">
-              <Button onClick={handleUpdateProfile}>Save</Button>
+              <Button onClick={handleUpdateProfile}>{t("save")}</Button>
               <Button variant="outline" onClick={() => setIsEditing(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           ) : (
             <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-              Edit
+              {t("edit")}
             </Button>
           )}
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Email (read-only) */}
           <div className="space-y-2">
-            <Label>Email</Label>
+            <Label>{t("email")}</Label>
             <p className="text-sm text-muted-foreground">{extendedUser?.email}</p>
           </div>
-
-          {/* Display Name */}
           <div className="space-y-2">
-            <Label>Display Name</Label>
+            <Label>{t("displayName")}</Label>
             {isEditing ? (
               <Input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Display Name"
+                placeholder={t("displayName")}
               />
             ) : (
-              <p className="text-sm text-muted-foreground">{displayName || "No display name"}</p>
+              <p className="text-sm text-muted-foreground">
+                {displayName || t("notSet")}
+              </p>
             )}
           </div>
-
-          {/* Birthdate */}
           <div className="space-y-2">
-            <Label>Birthdate</Label>
+            <Label>{t("birthdate")}</Label>
             {isEditing ? (
               <Input
                 type="date"
@@ -256,7 +297,7 @@ export default function Settings() {
                     today.getDate()
                   );
                   if (selectedDate > minAgeDate) {
-                    setBirthdateError("You must be 18 years or older");
+                    setBirthdateError(t("youMustBe18OrOlder"));
                   } else {
                     setBirthdateError("");
                   }
@@ -266,62 +307,62 @@ export default function Settings() {
               />
             ) : (
               <p className="text-sm text-muted-foreground">
-                {birthdate ? new Date(birthdate).toLocaleDateString() : "Not set"}
+                {birthdate ? new Date(birthdate).toLocaleDateString() : t("notSet")}
               </p>
             )}
-            {birthdateError && <p className="text-sm text-red-500">{birthdateError}</p>}
+            {birthdateError && (
+              <p className="text-sm text-red-500">{birthdateError}</p>
+            )}
           </div>
-
-          {/* Location */}
           <div className="space-y-2">
-            <Label>Location</Label>
+            <Label>{t("location")}</Label>
             {isEditing ? (
               <div className="flex items-center">
                 <Input
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="City, Country"
+                  placeholder={t("enterLocation")}
                 />
                 <RefreshIcon onClick={fetchLocation} />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">{location || "Not set"}</p>
+              <p className="text-sm text-muted-foreground">
+                {location || t("notSet")}
+              </p>
             )}
           </div>
-
-          {/* Language */}
           <div className="space-y-2">
-            <Label>Language</Label>
+            <Label>{t("language")}</Label>
             {isEditing ? (
-              <Select value={language} onValueChange={setLanguage}>
+              <Select value={language} onValueChange={(val) => setLanguage(val)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select language" />
+                  <SelectValue placeholder={t("selectLanguage")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {["English", "Spanish", "French", "German", "Japanese"].map((lang) => (
-                      <SelectItem key={lang} value={lang}>
-                        {lang}
+                    {languageOptions.map((option) => (
+                      <SelectItem key={option.code} value={option.code}>
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
             ) : (
-              <p className="text-sm text-muted-foreground">{language}</p>
+              <p className="text-sm text-muted-foreground">
+                {language === "en" ? "English" : language === "es" ? "Español" : language}
+              </p>
             )}
           </div>
         </CardContent>
       </Card>
-
-      {/* Change Password Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Change Password</CardTitle>
+          <CardTitle>{t("changePassword")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Current Password</Label>
+            <Label>{t("currentPassword")}</Label>
             <Input
               type="password"
               value={currentPassword}
@@ -329,14 +370,14 @@ export default function Settings() {
             />
           </div>
           <div className="space-y-2">
-            <Label>New Password</Label>
+            <Label>{t("newPassword")}</Label>
             <Input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
             />
           </div>
-          <Button onClick={handleUpdatePassword}>Update Password</Button>
+          <Button onClick={handleUpdatePassword}>{t("updatePassword")}</Button>
         </CardContent>
       </Card>
     </div>

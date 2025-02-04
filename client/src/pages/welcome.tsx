@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { deleteAccount } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 
 export default function Welcome() {
+  const { t } = useTranslation();
   const { user, loading, verified } = useRequireAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -15,14 +17,14 @@ export default function Welcome() {
     try {
       await deleteAccount();
       toast({
-        title: "Account deleted",
-        description: "Your account has been successfully deleted",
+        title: t("accountDeleted"),
+        description: t("accountDeletedDescription"),
       });
       setLocation("/");
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: t("error"),
         description: error.message,
       });
     }
@@ -45,21 +47,15 @@ export default function Welcome() {
     );
   }
 
-  const displayName = user?.displayName?.split('|')[0] || 'User';
+  const displayName = user?.displayName?.split("|")[0] || t("user");
 
   return (
     <div className="container py-8">
-      <h1 className="text-3xl font-bold">Welcome, {displayName}!</h1>
-      <p className="mt-4 text-muted-foreground">
-        You've successfully logged in and verified your email.
-      </p>
+      <h1 className="text-3xl font-bold">{t("welcomeUser", { name: displayName })}</h1>
+      <p className="mt-4 text-muted-foreground">{t("loginSuccessMessage")}</p>
       <div className="mt-8">
-        <Button 
-          variant="destructive" 
-          onClick={handleDeleteAccount}
-          className="w-full max-w-xs"
-        >
-          Delete Account
+        <Button variant="destructive" onClick={handleDeleteAccount} className="w-full max-w-xs">
+          {t("deleteAccount")}
         </Button>
       </div>
     </div>
